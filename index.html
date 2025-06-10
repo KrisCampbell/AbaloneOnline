@@ -222,6 +222,38 @@
             color: green;
             margin: 10px 0;
         }
+
+        .lobby-status {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .player-slot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #ddd;
+        }
+
+        .player-slot.host {
+            border-left-color: #667eea;
+        }
+
+        .player-slot.guest {
+            border-left-color: #28a745;
+        }
+
+        .player-slot.empty {
+            border-left-color: #ccc;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -248,9 +280,17 @@
         <div id="lobbyScreen" class="screen">
             <h1>Game Lobby</h1>
             <div id="gameCode" class="success"></div>
-            <div id="lobbyPlayers">
-                <div>Host: <span id="hostName"></span></div>
-                <div>Guest: <span id="guestName">Waiting for player...</span></div>
+            
+            <div class="lobby-status">
+                <h3>Players</h3>
+                <div id="hostSlot" class="player-slot host">
+                    <span>🏠 Host: <strong id="hostName">-</strong></span>
+                    <span id="hostColor" class="color-indicator"></span>
+                </div>
+                <div id="guestSlot" class="player-slot empty">
+                    <span>👤 Guest: <strong id="guestName">Waiting for player...</strong></span>
+                    <span id="guestColor" class="color-indicator"></span>
+                </div>
             </div>
             
             <div id="colorSelection" class="lobby-controls" style="display:none;">
@@ -271,6 +311,7 @@
                 <button id="startGameBtn" disabled>Start Game</button>
                 <button id="leaveLobbyBtn">Leave Lobby</button>
             </div>
+            <div id="lobbyStatus" class="success"></div>
         </div>
 
         <!-- Game Screen -->
@@ -311,18 +352,21 @@
     </div>
 
     <script>
-        // Game state
-        let gameState = {
-            currentScreen: 'home',
+        // Global game lobbies - simulates server state
+        window.gameLobbies = window.gameLobbies || {};
+
+        // Local player state
+        let playerState = {
             username: '',
             gameCode: '',
             isHost: false,
-            players: {},
-            hostColor: 'white',
-            currentTurn: 'white',
-            board: {},
+            currentScreen: 'home'
+        };
+
+        // Game state for current player
+        let localGameState = {
             selectedCells: [],
-            captured: { white: 0, black: 0 },
+            board: {},
             gameStarted: false
         };
 
@@ -358,6 +402,9 @@
             initializeBoardPositions();
             setupEventListeners();
             showScreen('home');
+            
+            // Start polling for lobby updates
+            setInterval(updateLobbyDisplay, 1000);
         }
 
         // Screen management
@@ -366,7 +413,7 @@
                 screen.classList.remove('active');
             });
             document.getElementById(screenName + 'Screen').classList.add('active');
-            gameState.currentScreen = screenName;
+            playerState.currentScreen = screenName;
         }
 
         // Event listeners
@@ -398,6 +445,10 @@
             for (let i = 0; i < 4; i++) {
                 code += letters.charAt(Math.floor(Math.random() * letters.length));
             }
+            // Make sure code doesn't already exist
+            if (window.gameLobbies[code]) {
+                return generateGameCode();
+            }
             return code;
         }
 
@@ -409,18 +460,30 @@
                 return;
             }
 
-            gameState.username = username;
-            gameState.gameCode = generateGameCode();
-            gameState.isHost = true;
-            gameState.players = { host: username, guest: null };
+            playerState.username = username;
+            playerState.gameCode = generateGameCode();
+            playerState.isHost = true;
             
-            document.getElementById('gameCode').textContent = `Game Code: ${gameState.gameCode}`;
-            document.getElementById('hostName').textContent = username;
+            // Create lobby in global state
+            window.gameLobbies[playerState.gameCode] = {
+                code: playerState.gameCode,
+                host: {
+                    username: username,
+                    color: 'white'
+                },
+                guest: null,
+                gameStarted: false,
+                currentTurn: 'white',
+                board: {},
+                captured: { white: 0, black: 0 }
+            };
+            
+            document.getElementById('gameCode').textContent = `Game Code: ${playerState.gameCode}`;
             document.getElementById('colorSelection').style.display = 'block';
             
             // Default selection
             selectColorOption('white');
-            
+            updateLobbyDisplay();
             showScreen('lobby');
         }
 
@@ -432,7 +495,7 @@
                 return;
             }
             
-            gameState.username = username;
+            playerState.username = username;
             document.getElementById('joinGameDiv').style.display = 'block';
         }
 
@@ -444,66 +507,181 @@
                 return;
             }
 
-            // Simulate joining game (in real implementation, this would connect to server)
-            gameState.gameCode = gameCode;
-            gameState.isHost = false;
-            gameState.players = { host: 'Host Player', guest: gameState.username };
+            // Check if lobby exists
+            if (!window.gameLobbies[gameCode]) {
+                document.getElementById('connectionError').textContent = 'Game lobby not found';
+                return;
+            }
+
+            const lobby = window.gameLobbies[gameCode];
+            
+            // Check if lobby is full
+            if (lobby.guest) {
+                document.getElementById('connectionError').textContent = 'Game lobby is full';
+                return;
+            }
+
+            // Join the lobby
+            playerState.gameCode = gameCode;
+            playerState.isHost = false;
+            
+            lobby.guest = {
+                username: playerState.username,
+                color: lobby.host.color === 'white' ? 'black' : 'white'
+            };
             
             document.getElementById('gameCode').textContent = `Game Code: ${gameCode}`;
-            document.getElementById('hostName').textContent = 'Host Player';
-            document.getElementById('guestName').textContent = gameState.username;
-            document.getElementById('startGameBtn').disabled = false;
+            document.getElementById('connectionError').textContent = '';
             
+            updateLobbyDisplay();
             showScreen('lobby');
         }
 
-        // Select color
+        // Update lobby display
+        function updateLobbyDisplay() {
+            if (playerState.currentScreen !== 'lobby' || !playerState.gameCode) return;
+            
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (!lobby) return;
+
+            // Update host info
+            document.getElementById('hostName').textContent = lobby.host.username;
+            const hostColorEl = document.getElementById('hostColor');
+            hostColorEl.className = `color-indicator ${lobby.host.color}`;
+
+            // Update guest info
+            if (lobby.guest) {
+                document.getElementById('guestName').textContent = lobby.guest.username;
+                const guestColorEl = document.getElementById('guestColor');
+                guestColorEl.className = `color-indicator ${lobby.guest.color}`;
+                document.getElementById('guestSlot').classList.remove('empty');
+                document.getElementById('guestSlot').classList.add('guest');
+                
+                // Enable start button for host
+                if (playerState.isHost) {
+                    document.getElementById('startGameBtn').disabled = false;
+                }
+                
+                document.getElementById('lobbyStatus').textContent = 'Both players connected! Host can start the game.';
+            } else {
+                document.getElementById('guestName').textContent = 'Waiting for player...';
+                document.getElementById('guestColor').className = 'color-indicator';
+                document.getElementById('guestSlot').classList.add('empty');
+                document.getElementById('guestSlot').classList.remove('guest');
+                document.getElementById('startGameBtn').disabled = true;
+                document.getElementById('lobbyStatus').textContent = 'Waiting for second player to join...';
+            }
+
+            // Update color selection visibility
+            document.getElementById('colorSelection').style.display = playerState.isHost ? 'block' : 'none';
+
+            // Check if game started
+            if (lobby.gameStarted && !localGameState.gameStarted) {
+                startLocalGame();
+            }
+        }
+
+        // Select color (host only)
         function selectColor(event) {
-            if (!gameState.isHost) return;
+            if (!playerState.isHost) return;
             
             const color = event.currentTarget.dataset.color;
             selectColorOption(color);
         }
 
         function selectColorOption(color) {
+            if (!playerState.isHost) return;
+            
             document.querySelectorAll('.color-option').forEach(option => {
                 option.classList.remove('selected');
             });
             document.querySelector(`[data-color="${color}"]`).classList.add('selected');
-            gameState.hostColor = color;
+            
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (lobby) {
+                lobby.host.color = color;
+                if (lobby.guest) {
+                    lobby.guest.color = color === 'white' ? 'black' : 'white';
+                }
+                updateLobbyDisplay();
+            }
         }
 
-        // Start game
+        // Start game (host only)
         function startGame() {
-            if (!gameState.players.guest) {
-                return;
-            }
-
-            gameState.gameStarted = true;
-            gameState.currentTurn = 'white';
-            gameState.captured = { white: 0, black: 0 };
+            if (!playerState.isHost) return;
             
-            // Set player names based on colors
-            if (gameState.isHost) {
-                if (gameState.hostColor === 'white') {
-                    document.getElementById('whitePlayerName').textContent = gameState.players.host;
-                    document.getElementById('blackPlayerName').textContent = gameState.players.guest;
-                } else {
-                    document.getElementById('whitePlayerName').textContent = gameState.players.guest;
-                    document.getElementById('blackPlayerName').textContent = gameState.players.host;
-                }
-            }
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (!lobby || !lobby.guest) return;
+
+            lobby.gameStarted = true;
+            lobby.currentTurn = 'white';
+            lobby.captured = { white: 0, black: 0 };
+            
+            // Initialize board state
+            initializeBoardState(lobby);
+            
+            startLocalGame();
+        }
+
+        // Start local game display
+        function startLocalGame() {
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (!lobby) return;
+
+            localGameState.gameStarted = true;
+            
+            // Set player names
+            document.getElementById('whitePlayerName').textContent = 
+                lobby.host.color === 'white' ? lobby.host.username : lobby.guest.username;
+            document.getElementById('blackPlayerName').textContent = 
+                lobby.host.color === 'black' ? lobby.host.username : lobby.guest.username;
             
             initializeBoard();
             updateGameDisplay();
             showScreen('game');
         }
 
-        // Initialize board
+        // Initialize board state in lobby
+        function initializeBoardState(lobby) {
+            lobby.board = {};
+            
+            // Initialize all positions as empty
+            BOARD_POSITIONS.forEach(pos => {
+                lobby.board[pos.id] = null;
+            });
+
+            // Set initial marble positions
+            const whitePositions = [
+                '6-2', '6-3', '6-4', '6-5', '6-6',
+                '7-2', '7-3', '7-4', '7-5', '7-6',
+                '8-3', '8-4', '8-5'
+            ];
+
+            const blackPositions = [
+                '0-3', '0-4', '0-5',
+                '1-2', '1-3', '1-4', '1-5', '1-6',
+                '2-2', '2-3', '2-4', '2-5', '2-6'
+            ];
+
+            whitePositions.forEach(pos => {
+                if (lobby.board.hasOwnProperty(pos)) {
+                    lobby.board[pos] = 'white';
+                }
+            });
+
+            blackPositions.forEach(pos => {
+                if (lobby.board.hasOwnProperty(pos)) {
+                    lobby.board[pos] = 'black';
+                }
+            });
+        }
+
+        // Initialize board display
         function initializeBoard() {
             const board = document.getElementById('gameBoard');
             board.innerHTML = '';
-            gameState.board = {};
+            localGameState.board = {};
 
             // Create board cells
             BOARD_POSITIONS.forEach(pos => {
@@ -514,49 +692,30 @@
                 cell.style.top = (pos.y - 12.5) + 'px';
                 cell.addEventListener('click', () => handleCellClick(pos.id));
                 board.appendChild(cell);
-                
-                gameState.board[pos.id] = null;
             });
 
-            // Set initial marble positions
-            setInitialMarbles();
-        }
-
-        // Set initial marble positions
-        function setInitialMarbles() {
-            // White marbles (bottom)
-            const whitePositions = [
-                '6-2', '6-3', '6-4', '6-5', '6-6',
-                '7-2', '7-3', '7-4', '7-5', '7-6',
-                '8-3', '8-4', '8-5'
-            ];
-
-            // Black marbles (top)
-            const blackPositions = [
-                '0-3', '0-4', '0-5',
-                '1-2', '1-3', '1-4', '1-5', '1-6',
-                '2-2', '2-3', '2-4', '2-5', '2-6'
-            ];
-
-            whitePositions.forEach(pos => {
-                if (gameState.board.hasOwnProperty(pos)) {
-                    gameState.board[pos] = 'white';
-                    createMarble(pos, 'white');
-                }
-            });
-
-            blackPositions.forEach(pos => {
-                if (gameState.board.hasOwnProperty(pos)) {
-                    gameState.board[pos] = 'black';
-                    createMarble(pos, 'black');
-                }
-            });
+            // Sync with lobby state
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (lobby && lobby.board) {
+                Object.keys(lobby.board).forEach(cellId => {
+                    const marble = lobby.board[cellId];
+                    if (marble) {
+                        createMarble(cellId, marble);
+                    }
+                });
+            }
         }
 
         // Create marble
         function createMarble(cellId, color) {
             const cell = document.getElementById(cellId);
             if (!cell) return;
+
+            // Remove existing marble
+            const existingMarble = cell.querySelector('.marble');
+            if (existingMarble) {
+                existingMarble.remove();
+            }
 
             const marble = document.createElement('div');
             marble.className = `marble ${color}`;
@@ -565,21 +724,22 @@
 
         // Handle cell click
         function handleCellClick(cellId) {
-            if (!gameState.gameStarted) return;
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (!lobby || !lobby.gameStarted) return;
 
             const cell = document.getElementById(cellId);
-            const marble = gameState.board[cellId];
+            const marble = lobby.board[cellId];
 
             // Check if it's the player's turn
-            const isPlayerTurn = (gameState.isHost && gameState.hostColor === gameState.currentTurn) ||
-                               (!gameState.isHost && gameState.hostColor !== gameState.currentTurn);
+            const playerColor = playerState.isHost ? lobby.host.color : lobby.guest.color;
+            const isPlayerTurn = lobby.currentTurn === playerColor;
             
             if (!isPlayerTurn) return;
 
-            if (marble === gameState.currentTurn) {
+            if (marble === playerColor) {
                 // Select own marble
                 toggleCellSelection(cellId);
-            } else if (gameState.selectedCells.length > 0) {
+            } else if (localGameState.selectedCells.length > 0) {
                 // Try to move to this cell
                 attemptMove(cellId);
             }
@@ -588,21 +748,21 @@
         // Toggle cell selection
         function toggleCellSelection(cellId) {
             const cell = document.getElementById(cellId);
-            const index = gameState.selectedCells.indexOf(cellId);
+            const index = localGameState.selectedCells.indexOf(cellId);
 
             if (index === -1) {
                 // Add to selection
-                gameState.selectedCells.push(cellId);
+                localGameState.selectedCells.push(cellId);
                 cell.classList.add('selected');
             } else {
                 // Remove from selection
-                gameState.selectedCells.splice(index, 1);
+                localGameState.selectedCells.splice(index, 1);
                 cell.classList.remove('selected');
             }
 
             // Limit selection to 3 marbles
-            if (gameState.selectedCells.length > 3) {
-                const firstSelected = gameState.selectedCells.shift();
+            if (localGameState.selectedCells.length > 3) {
+                const firstSelected = localGameState.selectedCells.shift();
                 document.getElementById(firstSelected).classList.remove('selected');
             }
 
@@ -616,14 +776,16 @@
                 cell.classList.remove('valid-move');
             });
 
-            if (gameState.selectedCells.length === 0) return;
+            if (localGameState.selectedCells.length === 0) return;
+
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (!lobby) return;
 
             // For simplicity, show all empty adjacent cells as valid moves
-            // In full implementation, this would check all Abalone rules
-            gameState.selectedCells.forEach(cellId => {
+            localGameState.selectedCells.forEach(cellId => {
                 const neighbors = getNeighbors(cellId);
                 neighbors.forEach(neighborId => {
-                    if (gameState.board[neighborId] === null) {
+                    if (lobby.board[neighborId] === null) {
                         const cell = document.getElementById(neighborId);
                         if (cell) cell.classList.add('valid-move');
                     }
@@ -644,7 +806,8 @@
                 const newRow = row + dr;
                 const newCol = col + dc;
                 const newId = `${newRow}-${newCol}`;
-                if (gameState.board.hasOwnProperty(newId)) {
+                const lobby = window.gameLobbies[playerState.gameCode];
+                if (lobby && lobby.board.hasOwnProperty(newId)) {
                     neighbors.push(newId);
                 }
             });
@@ -654,23 +817,27 @@
 
         // Attempt move
         function attemptMove(targetCellId) {
-            if (gameState.selectedCells.length === 0) return;
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (!lobby || localGameState.selectedCells.length === 0) return;
 
-            // Simple move validation (in full implementation, check all Abalone rules)
-            if (gameState.board[targetCellId] === null) {
-                // Move marbles
-                gameState.selectedCells.forEach(cellId => {
-                    gameState.board[cellId] = null;
+            // Simple move validation
+            if (lobby.board[targetCellId] === null) {
+                const playerColor = playerState.isHost ? lobby.host.color : lobby.guest.color;
+                
+                // Move marbles (simplified - only moves one marble to target)
+                localGameState.selectedCells.forEach(cellId => {
+                    lobby.board[cellId] = null;
                     const cell = document.getElementById(cellId);
-                    cell.innerHTML = '';
+                    const marble = cell.querySelector('.marble');
+                    if (marble) marble.remove();
                 });
 
-                // Place marble at target (simplified - only moves one marble)
-                gameState.board[targetCellId] = gameState.currentTurn;
-                createMarble(targetCellId, gameState.currentTurn);
+                // Place marble at target
+                lobby.board[targetCellId] = playerColor;
+                createMarble(targetCellId, playerColor);
 
                 // Switch turns
-                gameState.currentTurn = gameState.currentTurn === 'white' ? 'black' : 'white';
+                lobby.currentTurn = lobby.currentTurn === 'white' ? 'black' : 'white';
                 updateGameDisplay();
                 resetSelection();
             }
@@ -678,11 +845,11 @@
 
         // Reset selection
         function resetSelection() {
-            gameState.selectedCells.forEach(cellId => {
+            localGameState.selectedCells.forEach(cellId => {
                 const cell = document.getElementById(cellId);
                 if (cell) cell.classList.remove('selected');
             });
-            gameState.selectedCells = [];
+            localGameState.selectedCells = [];
             
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.classList.remove('valid-move');
@@ -691,27 +858,33 @@
 
         // Update game display
         function updateGameDisplay() {
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (!lobby) return;
+
             document.getElementById('turnIndicator').textContent = 
-                gameState.currentTurn === 'white' ? "White's Turn" : "Black's Turn";
-            document.getElementById('whiteCaptured').textContent = gameState.captured.white;
-            document.getElementById('blackCaptured').textContent = gameState.captured.black;
+                lobby.currentTurn === 'white' ? "White's Turn" : "Black's Turn";
+            document.getElementById('whiteCaptured').textContent = lobby.captured.white;
+            document.getElementById('blackCaptured').textContent = lobby.captured.black;
 
             // Check for game end
-            if (gameState.captured.white >= 6) {
+            if (lobby.captured.white >= 6) {
                 endGame('black');
-            } else if (gameState.captured.black >= 6) {
+            } else if (lobby.captured.black >= 6) {
                 endGame('white');
             }
         }
 
         // End game
         function endGame(winner) {
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (!lobby) return;
+
             const modal = document.getElementById('gameOverModal');
             const title = document.getElementById('gameOverTitle');
             const message = document.getElementById('gameOverMessage');
 
-            const playerWon = (gameState.isHost && gameState.hostColor === winner) ||
-                            (!gameState.isHost && gameState.hostColor !== winner);
+            const playerColor = playerState.isHost ? lobby.host.color : lobby.guest.color;
+            const playerWon = playerColor === winner;
 
             title.textContent = playerWon ? 'You Win!' : 'You Lose!';
             message.textContent = `${winner.charAt(0).toUpperCase() + winner.slice(1)} player wins!`;
@@ -722,27 +895,48 @@
         // Return to lobby
         function returnToLobby() {
             document.getElementById('gameOverModal').style.display = 'none';
-            gameState.gameStarted = false;
+            
+            const lobby = window.gameLobbies[playerState.gameCode];
+            if (lobby) {
+                lobby.gameStarted = false;
+            }
+            
+            localGameState.gameStarted = false;
+            updateLobbyDisplay();
             showScreen('lobby');
         }
 
         // Leave lobby
         function leaveLobby() {
+            // Clean up lobby
+            if (playerState.gameCode && window.gameLobbies[playerState.gameCode]) {
+                const lobby = window.gameLobbies[playerState.gameCode];
+                if (playerState.isHost) {
+                    // Host leaves - delete entire lobby
+                    delete window.gameLobbies[playerState.gameCode];
+                } else {
+                    // Guest leaves - remove guest
+                    lobby.guest = null;
+                    lobby.gameStarted = false;
+                }
+            }
+
+            // Reset player state
+            playerState = {
+                username: '',
+                gameCode: '',
+                isHost: false,
+                currentScreen: 'home'
+            };
+
+            localGameState = {
+                selectedCells: [],
+                board: {},
+                gameStarted: false
+            };
+
             showScreen('home');
             document.getElementById('usernameInput').value = '';
             document.getElementById('gameCodeInput').value = '';
             document.getElementById('joinGameDiv').style.display = 'none';
-            document.getElementById('usernameError').textContent = '';
-            document.getElementById('connectionError').textContent = '';
-        }
-
-        // Leave game
-        function leaveGame() {
-            returnToLobby();
-        }
-
-        // Initialize the game when page loads
-        window.addEventListener('load', initializeGame);
-    </script>
-</body>
-</html>
+            document.getElementById('usernameError
