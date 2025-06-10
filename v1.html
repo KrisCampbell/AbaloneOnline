@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abalone - Online Multiplayer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 800px;
+            width: 90%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .screen {
+            display: none;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        input, button {
+            padding: 12px 20px;
+            margin: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .game-board {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .board {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            background: #8B4513;
+            border-radius: 50%;
+            border: 10px solid #654321;
+        }
+        
+        .cell {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            border: 1px solid #654321;
+            background: #D2B48C;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .cell:hover {
+            background: #F0E68C;
+        }
+        
+        .cell.selected {
+            background: #FFD700;
+            border: 3px solid #FF6347;
+        }
+        
+        .cell.valid-move {
+            background: #90EE90;
+        }
+        
+        .marble {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid #333;
+        }
+        
+        .marble.white {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .marble.black {
+            background: #333;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+        
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .color-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+        
+        .color-indicator.white {
+            background: white;
+        }
+        
+        .color-indicator.black {
+            background: #333;
+        }
+        
+        .turn-indicator {
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 300px;
+            text-align: center;
+        }
+        
+        .lobby-controls {
+            margin: 20px 0;
+        }
+        
+        .color-selection {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .color-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 10px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+        }
+        
+        .color-option.selected {
+            border-color: #667eea;
+            background: #f0f0f0;
+        }
+        
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+        
+        .success {
+            color: green;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Home Screen -->
+        <div id="homeScreen" class="screen active">
+            <h1>🔴 Abalone Online</h1>
+            <div>
+                <input type="text" id="usernameInput" placeholder="Enter your username" maxlength="20">
+                <div id="usernameError" class="error"></div>
+            </div>
+            <div>
+                <button id="hostBtn">Host Game</button>
+                <button id="joinBtn">Join Game</button>
+            </div>
+            <div id="joinGameDiv" style="display:none;">
+                <input type="text" id="gameCodeInput" placeholder="Enter 4-letter game code" maxlength="4">
+                <button id="connectBtn">Connect</button>
+            </div>
+            <div id="connectionError" class="error"></div>
+        </div>
+
+        <!-- Lobby Screen -->
+        <div id="lobbyScreen" class="screen">
+            <h1>Game Lobby</h1>
+            <div id="gameCode" class="success"></div>
+            <div id="lobbyPlayers">
+                <div>Host: <span id="hostName"></span></div>
+                <div>Guest: <span id="guestName">Waiting for player...</span></div>
+            </div>
+            
+            <div id="colorSelection" class="lobby-controls" style="display:none;">
+                <h3>Choose Your Color:</h3>
+                <div class="color-selection">
+                    <div class="color-option" data-color="white">
+                        <div class="color-indicator white"></div>
+                        <span>White (First)</span>
+                    </div>
+                    <div class="color-option" data-color="black">
+                        <div class="color-indicator black"></div>
+                        <span>Black (Second)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="lobby-controls">
+                <button id="startGameBtn" disabled>Start Game</button>
+                <button id="leaveLobbyBtn">Leave Lobby</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="screen">
+            <h1>Abalone</h1>
+            <div class="game-info">
+                <div class="player-info">
+                    <div class="color-indicator white"></div>
+                    <span id="whitePlayerName">White Player</span>
+                    <span>Captured: <span id="whiteCaptured">0</span></span>
+                </div>
+                <div class="turn-indicator" id="turnIndicator">White's Turn</div>
+                <div class="player-info">
+                    <div class="color-indicator black"></div>
+                    <span id="blackPlayerName">Black Player</span>
+                    <span>Captured: <span id="blackCaptured">0</span></span>
+                </div>
+            </div>
+            
+            <div class="game-board">
+                <div class="board" id="gameBoard"></div>
+            </div>
+            
+            <div>
+                <button id="resetSelectionBtn">Reset Selection</button>
+                <button id="leaveGameBtn">Leave Game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <h2 id="gameOverTitle">Game Over!</h2>
+            <p id="gameOverMessage"></p>
+            <button id="returnToLobbyBtn">Return to Lobby</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        let gameState = {
+            currentScreen: 'home',
+            username: '',
+            gameCode: '',
+            isHost: false,
+            players: {},
+            hostColor: 'white',
+            currentTurn: 'white',
+            board: {},
+            selectedCells: [],
+            captured: { white: 0, black: 0 },
+            gameStarted: false
+        };
+
+        // Board coordinates - hexagonal grid
+        const BOARD_POSITIONS = [];
+        
+        // Initialize board positions (simplified hexagonal layout)
+        function initializeBoardPositions() {
+            const center = { x: 250, y: 250 };
+            const spacing = 35;
+            
+            // Create hexagonal grid positions
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    const distance = Math.abs(row - 4) + Math.abs(col - 4);
+                    if (distance <= 4) {
+                        const x = center.x + (col - 4) * spacing * 0.866;
+                        const y = center.y + (row - 4) * spacing * 0.75;
+                        BOARD_POSITIONS.push({ 
+                            id: `${row}-${col}`, 
+                            x: x, 
+                            y: y, 
+                            row: row, 
+                            col: col 
+                        });
+                    }
+                }
+            }
+        }
+
+        // Initialize game
+        function initializeGame() {
+            initializeBoardPositions();
+            setupEventListeners();
+            showScreen('home');
+        }
+
+        // Screen management
+        function showScreen(screenName) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenName + 'Screen').classList.add('active');
+            gameState.currentScreen = screenName;
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            // Home screen
+            document.getElementById('hostBtn').addEventListener('click', hostGame);
+            document.getElementById('joinBtn').addEventListener('click', showJoinGame);
+            document.getElementById('connectBtn').addEventListener('click', joinGame);
+
+            // Lobby screen
+            document.getElementById('startGameBtn').addEventListener('click', startGame);
+            document.getElementById('leaveLobbyBtn').addEventListener('click', leaveLobby);
+            
+            // Color selection
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.addEventListener('click', selectColor);
+            });
+
+            // Game screen
+            document.getElementById('resetSelectionBtn').addEventListener('click', resetSelection);
+            document.getElementById('leaveGameBtn').addEventListener('click', leaveGame);
+            document.getElementById('returnToLobbyBtn').addEventListener('click', returnToLobby);
+        }
+
+        // Generate random game code
+        function generateGameCode() {
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let code = '';
+            for (let i = 0; i < 4; i++) {
+                code += letters.charAt(Math.floor(Math.random() * letters.length));
+            }
+            return code;
+        }
+
+        // Host game
+        function hostGame() {
+            const username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                document.getElementById('usernameError').textContent = 'Please enter a username';
+                return;
+            }
+
+            gameState.username = username;
+            gameState.gameCode = generateGameCode();
+            gameState.isHost = true;
+            gameState.players = { host: username, guest: null };
+            
+            document.getElementById('gameCode').textContent = `Game Code: ${gameState.gameCode}`;
+            document.getElementById('hostName').textContent = username;
+            document.getElementById('colorSelection').style.display = 'block';
+            
+            // Default selection
+            selectColorOption('white');
+            
+            showScreen('lobby');
+        }
+
+        // Show join game input
+        function showJoinGame() {
+            const username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                document.getElementById('usernameError').textContent = 'Please enter a username';
+                return;
+            }
+            
+            gameState.username = username;
+            document.getElementById('joinGameDiv').style.display = 'block';
+        }
+
+        // Join game
+        function joinGame() {
+            const gameCode = document.getElementById('gameCodeInput').value.trim().toUpperCase();
+            if (gameCode.length !== 4) {
+                document.getElementById('connectionError').textContent = 'Please enter a valid 4-letter game code';
+                return;
+            }
+
+            // Simulate joining game (in real implementation, this would connect to server)
+            gameState.gameCode = gameCode;
+            gameState.isHost = false;
+            gameState.players = { host: 'Host Player', guest: gameState.username };
+            
+            document.getElementById('gameCode').textContent = `Game Code: ${gameCode}`;
+            document.getElementById('hostName').textContent = 'Host Player';
+            document.getElementById('guestName').textContent = gameState.username;
+            document.getElementById('startGameBtn').disabled = false;
+            
+            showScreen('lobby');
+        }
+
+        // Select color
+        function selectColor(event) {
+            if (!gameState.isHost) return;
+            
+            const color = event.currentTarget.dataset.color;
+            selectColorOption(color);
+        }
+
+        function selectColorOption(color) {
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector(`[data-color="${color}"]`).classList.add('selected');
+            gameState.hostColor = color;
+        }
+
+        // Start game
+        function startGame() {
+            if (!gameState.players.guest) {
+                return;
+            }
+
+            gameState.gameStarted = true;
+            gameState.currentTurn = 'white';
+            gameState.captured = { white: 0, black: 0 };
+            
+            // Set player names based on colors
+            if (gameState.isHost) {
+                if (gameState.hostColor === 'white') {
+                    document.getElementById('whitePlayerName').textContent = gameState.players.host;
+                    document.getElementById('blackPlayerName').textContent = gameState.players.guest;
+                } else {
+                    document.getElementById('whitePlayerName').textContent = gameState.players.guest;
+                    document.getElementById('blackPlayerName').textContent = gameState.players.host;
+                }
+            }
+            
+            initializeBoard();
+            updateGameDisplay();
+            showScreen('game');
+        }
+
+        // Initialize board
+        function initializeBoard() {
+            const board = document.getElementById('gameBoard');
+            board.innerHTML = '';
+            gameState.board = {};
+
+            // Create board cells
+            BOARD_POSITIONS.forEach(pos => {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.id = pos.id;
+                cell.style.left = (pos.x - 12.5) + 'px';
+                cell.style.top = (pos.y - 12.5) + 'px';
+                cell.addEventListener('click', () => handleCellClick(pos.id));
+                board.appendChild(cell);
+                
+                gameState.board[pos.id] = null;
+            });
+
+            // Set initial marble positions
+            setInitialMarbles();
+        }
+
+        // Set initial marble positions
+        function setInitialMarbles() {
+            // White marbles (bottom)
+            const whitePositions = [
+                '6-2', '6-3', '6-4', '6-5', '6-6',
+                '7-2', '7-3', '7-4', '7-5', '7-6',
+                '8-3', '8-4', '8-5'
+            ];
+
+            // Black marbles (top)
+            const blackPositions = [
+                '0-3', '0-4', '0-5',
+                '1-2', '1-3', '1-4', '1-5', '1-6',
+                '2-2', '2-3', '2-4', '2-5', '2-6'
+            ];
+
+            whitePositions.forEach(pos => {
+                if (gameState.board.hasOwnProperty(pos)) {
+                    gameState.board[pos] = 'white';
+                    createMarble(pos, 'white');
+                }
+            });
+
+            blackPositions.forEach(pos => {
+                if (gameState.board.hasOwnProperty(pos)) {
+                    gameState.board[pos] = 'black';
+                    createMarble(pos, 'black');
+                }
+            });
+        }
+
+        // Create marble
+        function createMarble(cellId, color) {
+            const cell = document.getElementById(cellId);
+            if (!cell) return;
+
+            const marble = document.createElement('div');
+            marble.className = `marble ${color}`;
+            cell.appendChild(marble);
+        }
+
+        // Handle cell click
+        function handleCellClick(cellId) {
+            if (!gameState.gameStarted) return;
+
+            const cell = document.getElementById(cellId);
+            const marble = gameState.board[cellId];
+
+            // Check if it's the player's turn
+            const isPlayerTurn = (gameState.isHost && gameState.hostColor === gameState.currentTurn) ||
+                               (!gameState.isHost && gameState.hostColor !== gameState.currentTurn);
+            
+            if (!isPlayerTurn) return;
+
+            if (marble === gameState.currentTurn) {
+                // Select own marble
+                toggleCellSelection(cellId);
+            } else if (gameState.selectedCells.length > 0) {
+                // Try to move to this cell
+                attemptMove(cellId);
+            }
+        }
+
+        // Toggle cell selection
+        function toggleCellSelection(cellId) {
+            const cell = document.getElementById(cellId);
+            const index = gameState.selectedCells.indexOf(cellId);
+
+            if (index === -1) {
+                // Add to selection
+                gameState.selectedCells.push(cellId);
+                cell.classList.add('selected');
+            } else {
+                // Remove from selection
+                gameState.selectedCells.splice(index, 1);
+                cell.classList.remove('selected');
+            }
+
+            // Limit selection to 3 marbles
+            if (gameState.selectedCells.length > 3) {
+                const firstSelected = gameState.selectedCells.shift();
+                document.getElementById(firstSelected).classList.remove('selected');
+            }
+
+            updateValidMoves();
+        }
+
+        // Update valid moves display
+        function updateValidMoves() {
+            // Clear previous valid moves
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('valid-move');
+            });
+
+            if (gameState.selectedCells.length === 0) return;
+
+            // For simplicity, show all empty adjacent cells as valid moves
+            // In full implementation, this would check all Abalone rules
+            gameState.selectedCells.forEach(cellId => {
+                const neighbors = getNeighbors(cellId);
+                neighbors.forEach(neighborId => {
+                    if (gameState.board[neighborId] === null) {
+                        const cell = document.getElementById(neighborId);
+                        if (cell) cell.classList.add('valid-move');
+                    }
+                });
+            });
+        }
+
+        // Get neighboring cells
+        function getNeighbors(cellId) {
+            const [row, col] = cellId.split('-').map(Number);
+            const neighbors = [];
+
+            const directions = [
+                [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0]
+            ];
+
+            directions.forEach(([dr, dc]) => {
+                const newRow = row + dr;
+                const newCol = col + dc;
+                const newId = `${newRow}-${newCol}`;
+                if (gameState.board.hasOwnProperty(newId)) {
+                    neighbors.push(newId);
+                }
+            });
+
+            return neighbors;
+        }
+
+        // Attempt move
+        function attemptMove(targetCellId) {
+            if (gameState.selectedCells.length === 0) return;
+
+            // Simple move validation (in full implementation, check all Abalone rules)
+            if (gameState.board[targetCellId] === null) {
+                // Move marbles
+                gameState.selectedCells.forEach(cellId => {
+                    gameState.board[cellId] = null;
+                    const cell = document.getElementById(cellId);
+                    cell.innerHTML = '';
+                });
+
+                // Place marble at target (simplified - only moves one marble)
+                gameState.board[targetCellId] = gameState.currentTurn;
+                createMarble(targetCellId, gameState.currentTurn);
+
+                // Switch turns
+                gameState.currentTurn = gameState.currentTurn === 'white' ? 'black' : 'white';
+                updateGameDisplay();
+                resetSelection();
+            }
+        }
+
+        // Reset selection
+        function resetSelection() {
+            gameState.selectedCells.forEach(cellId => {
+                const cell = document.getElementById(cellId);
+                if (cell) cell.classList.remove('selected');
+            });
+            gameState.selectedCells = [];
+            
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('valid-move');
+            });
+        }
+
+        // Update game display
+        function updateGameDisplay() {
+            document.getElementById('turnIndicator').textContent = 
+                gameState.currentTurn === 'white' ? "White's Turn" : "Black's Turn";
+            document.getElementById('whiteCaptured').textContent = gameState.captured.white;
+            document.getElementById('blackCaptured').textContent = gameState.captured.black;
+
+            // Check for game end
+            if (gameState.captured.white >= 6) {
+                endGame('black');
+            } else if (gameState.captured.black >= 6) {
+                endGame('white');
+            }
+        }
+
+        // End game
+        function endGame(winner) {
+            const modal = document.getElementById('gameOverModal');
+            const title = document.getElementById('gameOverTitle');
+            const message = document.getElementById('gameOverMessage');
+
+            const playerWon = (gameState.isHost && gameState.hostColor === winner) ||
+                            (!gameState.isHost && gameState.hostColor !== winner);
+
+            title.textContent = playerWon ? 'You Win!' : 'You Lose!';
+            message.textContent = `${winner.charAt(0).toUpperCase() + winner.slice(1)} player wins!`;
+            
+            modal.style.display = 'block';
+        }
+
+        // Return to lobby
+        function returnToLobby() {
+            document.getElementById('gameOverModal').style.display = 'none';
+            gameState.gameStarted = false;
+            showScreen('lobby');
+        }
+
+        // Leave lobby
+        function leaveLobby() {
+            showScreen('home');
+            document.getElementById('usernameInput').value = '';
+            document.getElementById('gameCodeInput').value = '';
+            document.getElementById('joinGameDiv').style.display = 'none';
+            document.getElementById('usernameError').textContent = '';
+            document.getElementById('connectionError').textContent = '';
+        }
+
+        // Leave game
+        function leaveGame() {
+            returnToLobby();
+        }
+
+        // Initialize the game when page loads
+        window.addEventListener('load', initializeGame);
+    </script>
+</body>
+</html>
