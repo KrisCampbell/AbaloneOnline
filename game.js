@@ -26,73 +26,48 @@ class AbaloneGame {
     }
     
     initializeBoard() {
-        // Create hexagonal board representation for standard Abalone
+        // Create proper hexagonal Abalone board
         // Using axial coordinates (q, r) for hexagonal grid
         const board = new Map();
         
-        // Standard Abalone board: hexagonal shape with 61 positions
-        // Each row has varying lengths to form a proper hexagon
-        const boardLayout = [
-            { row: -4, cols: [-4, -3, -2, -1, 0] },           // 5 positions
-            { row: -3, cols: [-4, -3, -2, -1, 0, 1] },        // 6 positions  
-            { row: -2, cols: [-4, -3, -2, -1, 0, 1, 2] },     // 7 positions
-            { row: -1, cols: [-4, -3, -2, -1, 0, 1, 2, 3] },  // 8 positions
-            { row: 0, cols: [-4, -3, -2, -1, 0, 1, 2, 3, 4] }, // 9 positions (center)
-            { row: 1, cols: [-3, -2, -1, 0, 1, 2, 3, 4] },    // 8 positions
-            { row: 2, cols: [-2, -1, 0, 1, 2, 3, 4] },        // 7 positions
-            { row: 3, cols: [-1, 0, 1, 2, 3, 4] },            // 6 positions
-            { row: 4, cols: [0, 1, 2, 3, 4] }                 // 5 positions
-        ];
-        
-        // Initialize empty board
-        boardLayout.forEach(row => {
-            row.cols.forEach(col => {
-                board.set(`${col},${row.row}`, null);
-            });
-        });
+        // Standard Abalone board: proper hexagon with 61 positions
+        // This creates a symmetrical hexagon, not an elongated shape
+        for (let q = -4; q <= 4; q++) {
+            const r1 = Math.max(-4, -q - 4);
+            const r2 = Math.min(4, -q + 4);
+            for (let r = r1; r <= r2; r++) {
+                board.set(`${q},${r}`, null);
+            }
+        }
         
         // Place initial pieces in standard Abalone formation
-        // Black pieces (top side of hexagon)
-        // Row -4: 5 black pieces
-        board.set('-4,-4', 'black');
-        board.set('-3,-4', 'black');
-        board.set('-2,-4', 'black');
-        board.set('-1,-4', 'black');
-        board.set('0,-4', 'black');
+        // Black pieces (top-left side)
+        const blackPieces = [
+            // Back row (edge of board)
+            [-4, 0], [-4, 1], [-4, 2], [-4, 3], [-4, 4],
+            // Middle row
+            [-3, -1], [-3, 0], [-3, 1], [-3, 2], [-3, 3], [-3, 4],
+            // Front row (closest to center)
+            [-2, -2], [-2, -1], [-2, 0]
+        ];
         
-        // Row -3: 6 black pieces  
-        board.set('-4,-3', 'black');
-        board.set('-3,-3', 'black');
-        board.set('-2,-3', 'black');
-        board.set('-1,-3', 'black');
-        board.set('0,-3', 'black');
-        board.set('1,-3', 'black');
+        blackPieces.forEach(([q, r]) => {
+            board.set(`${q},${r}`, 'black');
+        });
         
-        // Row -2: 3 black pieces (only center)
-        board.set('-2,-2', 'black');
-        board.set('-1,-2', 'black');
-        board.set('0,-2', 'black');
+        // White pieces (bottom-right side)
+        const whitePieces = [
+            // Front row (closest to center)
+            [2, 0], [2, 1], [2, 2],
+            // Middle row
+            [3, -4], [3, -3], [3, -2], [3, -1], [3, 0], [3, 1],
+            // Back row (edge of board)
+            [4, -4], [4, -3], [4, -2], [4, -1], [4, 0]
+        ];
         
-        // White pieces (bottom side of hexagon)  
-        // Row 2: 3 white pieces (only center)
-        board.set('0,2', 'white');
-        board.set('1,2', 'white');
-        board.set('2,2', 'white');
-        
-        // Row 3: 6 white pieces
-        board.set('-1,3', 'white');
-        board.set('0,3', 'white');
-        board.set('1,3', 'white');
-        board.set('2,3', 'white');
-        board.set('3,3', 'white');
-        board.set('4,3', 'white');
-        
-        // Row 4: 5 white pieces
-        board.set('0,4', 'white');
-        board.set('1,4', 'white');
-        board.set('2,4', 'white');
-        board.set('3,4', 'white');
-        board.set('4,4', 'white');
+        whitePieces.forEach(([q, r]) => {
+            board.set(`${q},${r}`, 'white');
+        });
         
         return board;
     }

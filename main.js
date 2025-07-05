@@ -12,7 +12,7 @@ function initializeGame() {
     game = new AbaloneGame();
     
     // Initialize multiplayer manager
-    multiplayer = new SimpleMultiplayer(game);
+    multiplayer = new WorkingMultiplayer(game);
     
     // Extend game with multiplayer support
     game.onMoveComplete = (move) => {
