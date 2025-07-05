@@ -294,28 +294,41 @@ class AbaloneGame {
     isValidMove(move) {
         const { from, to } = move;
         
+        console.log('Validating move:', move);
+        
         // Check pieces belong to current player
         for (const piece of from) {
             const key = `${piece.q},${piece.r}`;
             if (this.board.get(key) !== this.currentPlayer) {
+                console.log('Validation failed: piece does not belong to current player', piece, this.currentPlayer);
                 return false;
             }
         }
         
         // Check destination is on board
         const toKey = `${to.q},${to.r}`;
-        if (!this.board.has(toKey)) return false;
+        if (!this.board.has(toKey)) {
+            console.log('Validation failed: destination not on board', to);
+            return false;
+        }
         
         // Check if pieces are in a straight line
-        if (!this.areInStraightLine(from)) return false;
+        if (!this.areInStraightLine(from)) {
+            console.log('Validation failed: pieces not in straight line', from);
+            return false;
+        }
         
         // Single piece move
         if (from.length === 1) {
+            console.log('Validating single piece move');
             return this.isValidSingleMove(from[0], to);
         }
         
         // Multi-piece move
-        return this.isValidGroupMove(from, to);
+        console.log('Validating group move');
+        const result = this.isValidGroupMove(from, to);
+        console.log('Group move validation result:', result);
+        return result;
     }
     
     isValidSingleMove(from, to) {
@@ -330,14 +343,23 @@ class AbaloneGame {
     }
     
     isValidGroupMove(pieces, to) {
+        console.log('Validating group move with pieces:', pieces, 'to:', to);
+        
         // Get the line direction
         const direction = this.getLineDirection(pieces);
-        if (!direction) return false;
+        if (!direction) {
+            console.log('Group move failed: no line direction');
+            return false;
+        }
+        
+        console.log('Line direction:', direction);
         
         // Sort pieces from back to front
         const sorted = this.sortPiecesInDirection(pieces, direction);
         const frontPiece = sorted[sorted.length - 1];
         const backPiece = sorted[0];
+        
+        console.log('Sorted pieces:', sorted, 'front:', frontPiece, 'back:', backPiece);
         
         // Check if move is inline (forward/backward)
         const frontStep = {
@@ -349,16 +371,23 @@ class AbaloneGame {
             r: backPiece.r - direction.r
         };
         
+        console.log('Front step:', frontStep, 'Back step:', backStep, 'Target:', to);
+        
         if (to.q === frontStep.q && to.r === frontStep.r) {
+            console.log('This is a forward inline move');
             // Forward move - can push
             return this.isValidInlineMove(sorted, direction, true);
         } else if (to.q === backStep.q && to.r === backStep.r) {
+            console.log('This is a backward inline move');
             // Backward move - to empty space only
             const toKey = `${to.q},${to.r}`;
             return this.board.get(toKey) === null;
         } else {
+            console.log('This should be a sidestep move, validating...');
             // Check if it's a valid sidestep move
-            return this.isValidSidestepMove(pieces, to);
+            const result = this.isValidSidestepMove(pieces, to);
+            console.log('Sidestep validation result:', result);
+            return result;
         }
     }
     
