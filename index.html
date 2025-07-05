@@ -41,21 +41,19 @@
                     <div class="connection-status">
                         <span id="connection-status">Disconnected</span>
                     </div>
-                    <div class="multiplayer-controls">
-                        <button id="host-game">Host Game</button>
-                        <button id="join-game">Join Game</button>
-                        <input type="text" id="game-code" placeholder="Enter game code">
-                    </div>
-                    <div id="game-code-display" style="display: none;">
-                        <p>Game Code: <strong id="generated-code"></strong></p>
-                        <p>Share this code with your friend!</p>
+                    <div id="multiplayer-lobby">
+                        <div class="multiplayer-controls">
+                            <button id="host-game">Host Game</button>
+                            <button id="join-game">Join Game</button>
+                            <input type="text" id="game-code" placeholder="Enter game code">
+                        </div>
+                        <div id="game-code-display" style="display: none;">
+                            <p>Game Code: <strong id="generated-code"></strong></p>
+                            <p>Share this code with your friend!</p>
+                        </div>
                     </div>
                 </div>
 
-                <div class="game-controls">
-                    <button id="reset-game">Reset Game</button>
-                    <button id="undo-move" disabled>Undo Move</button>
-                </div>
 
                 <div class="move-history">
                     <h3>Move History</h3>
@@ -92,8 +90,8 @@
     </div>
 
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <script src="new-game.js?v=1751754277"></script>
-    <script src="working-multiplayer.js?v=1751754277"></script>
-    <script src="main.js?v=1751754277"></script>
+    <script src="new-game.js?v=1751755951"></script>
+    <script src="working-multiplayer.js?v=1751755951"></script>
+    <script src="main.js?v=1751755951"></script>
 </body>
 </html>

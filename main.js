@@ -61,32 +61,8 @@ function initializeGame() {
 }
 
 function setupUIEventListeners() {
-    // Reset game button
-    document.getElementById('reset-game').addEventListener('click', () => {
-        if (confirm('Are you sure you want to reset the game?')) {
-            game.reset();
-        }
-    });
-    
-    // Undo move button
-    document.getElementById('undo-move').addEventListener('click', () => {
-        undoLastMove();
-    });
-    
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'r' && e.ctrlKey) {
-            e.preventDefault();
-            if (confirm('Are you sure you want to reset the game?')) {
-                game.reset();
-            }
-        }
-        
-        if (e.key === 'z' && e.ctrlKey) {
-            e.preventDefault();
-            undoLastMove();
-        }
-        
         if (e.key === 'Escape') {
             game.selectedPieces = [];
             game.render();
@@ -132,9 +108,7 @@ function updateUI() {
     document.getElementById('black-score').textContent = game.blackScore;
     document.getElementById('white-score').textContent = game.whiteScore;
     
-    // Update undo button state
-    const undoButton = document.getElementById('undo-move');
-    undoButton.disabled = game.gameHistory.length === 0 || multiplayer.isConnected;
+    // Buttons removed - no longer needed
     
     // Check for game end
     if (game.gameEnded) {

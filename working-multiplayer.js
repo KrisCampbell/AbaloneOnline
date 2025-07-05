@@ -139,13 +139,8 @@ class WorkingMultiplayer {
             'Connected! You are Black (top player)';
         this.updateConnectionStatus(statusText);
         
-        // Hide connection UI
-        document.getElementById('game-code-display').style.display = 'none';
-        
-        // Update UI
-        document.getElementById('host-game').disabled = true;
-        document.getElementById('join-game').disabled = true;
-        document.getElementById('game-code').disabled = true;
+        // Hide entire multiplayer lobby
+        document.getElementById('multiplayer-lobby').style.display = 'none';
         document.getElementById('game-mode').textContent = `${this.isHost ? 'Host' : 'Guest'} (${this.myColor})`;
         
         // Reset game to standard starting position with black to move first
@@ -177,10 +172,8 @@ class WorkingMultiplayer {
             this.peer = null;
         }
         
-        // Re-enable UI
-        document.getElementById('host-game').disabled = false;
-        document.getElementById('join-game').disabled = false;
-        document.getElementById('game-code').disabled = false;
+        // Show multiplayer lobby again
+        document.getElementById('multiplayer-lobby').style.display = 'block';
         document.getElementById('game-mode').textContent = 'Local';
     }
     
@@ -264,7 +257,8 @@ class WorkingMultiplayer {
     }
     
     generateGameCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        // Remove ambiguous characters: 0/O, 1/I/L, 2/Z, 5/S, 8/B
+        const chars = 'ACDEFGHJKMNPQRTUVWXY3467';
         let code = '';
         for (let i = 0; i < 6; i++) {
             code += chars.charAt(Math.floor(Math.random() * chars.length));
