@@ -37,12 +37,12 @@ class AbaloneGame {
         const blackPositions = [
             [-4, 0], [-4, 1], [-4, 2], [-4, 3], [-4, 4],
             [-3, -1], [-3, 0], [-3, 1], [-3, 2], [-3, 3], [-3, 4],
-            [-2, -2], [-2, -1], [-2, 0]
+            [-2, -1], [-2, 0], [-2, 1]
         ];
         
         // White pieces (opposite corner)
         const whitePositions = [
-            [2, 0], [2, 1], [2, 2],
+            [2, -1], [2, 0], [2, 1],
             [3, -4], [3, -3], [3, -2], [3, -1], [3, 0], [3, 1],
             [4, -4], [4, -3], [4, -2], [4, -1], [4, 0]
         ];
@@ -59,7 +59,8 @@ class AbaloneGame {
     }
     
     setupEventListeners() {
-        this.canvas.addEventListener('click', (e) => {
+        // Handle both mouse clicks and touch events for mobile compatibility
+        const handleInteraction = (e) => {
             if (this.gameEnded) return;
             
             // Check turn permission for multiplayer
@@ -67,14 +68,44 @@ class AbaloneGame {
                 return;
             }
             
+            e.preventDefault(); // Prevent default touch behavior
+            
             const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            let x, y;
+            
+            // Handle both touch and mouse events
+            if (e.type === 'touchstart' || e.type === 'touchend') {
+                const touch = e.touches[0] || e.changedTouches[0];
+                x = touch.clientX - rect.left;
+                y = touch.clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+            
+            // Scale coordinates if canvas is scaled
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            x *= scaleX;
+            y *= scaleY;
             
             const hex = this.pixelToHex(x, y);
             if (hex) {
                 this.handleClick(hex);
             }
+        };
+        
+        // Add both click and touch event listeners
+        this.canvas.addEventListener('click', handleInteraction);
+        this.canvas.addEventListener('touchend', handleInteraction);
+        
+        // Prevent default touch behaviors that might interfere
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+        });
+        
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
         });
     }
     
