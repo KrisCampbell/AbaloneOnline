@@ -205,17 +205,24 @@ class AbaloneGame {
             // Check if this is a sidestep move to any of the pieces
             if (this.selectedPieces.length > 1) {
                 const sidestepMove = this.findSidestepMove(hex);
-                if (sidestepMove && this.isValidMove(sidestepMove)) {
-                    this.makeMove(sidestepMove);
-                    this.selectedPieces = [];
-                    this.switchPlayer();
-                    this.render();
-                    
-                    // Notify multiplayer
-                    if (this.onMoveComplete) {
-                        this.onMoveComplete(sidestepMove);
+                console.log('Attempting sidestep move:', sidestepMove);
+                if (sidestepMove) {
+                    console.log('Sidestep move found, validating...');
+                    if (this.isValidMove(sidestepMove)) {
+                        console.log('Sidestep move is valid, executing...');
+                        this.makeMove(sidestepMove);
+                        this.selectedPieces = [];
+                        this.switchPlayer();
+                        this.render();
+                        
+                        // Notify multiplayer
+                        if (this.onMoveComplete) {
+                            this.onMoveComplete(sidestepMove);
+                        }
+                        return;
+                    } else {
+                        console.log('Sidestep move validation failed');
                     }
-                    return;
                 }
             }
             
@@ -256,9 +263,15 @@ class AbaloneGame {
             
             // If this is a valid sidestep direction and the clicked hex is one of the destinations
             if (canMove && destinations.some(dest => dest.q === clickedHex.q && dest.r === clickedHex.r)) {
+                // For sidestep moves, we need to return the first piece's destination as the "to" field
+                // But the actual move logic will handle moving all pieces
+                const firstPieceDestination = {
+                    q: this.selectedPieces[0].q + direction.q,
+                    r: this.selectedPieces[0].r + direction.r
+                };
                 return {
                     from: [...this.selectedPieces],
-                    to: clickedHex,
+                    to: firstPieceDestination,
                     player: this.currentPlayer
                 };
             }
@@ -851,17 +864,31 @@ class AbaloneGame {
     }
     
     getPerpendicularDirections(lineDirection) {
-        // All 6 hex directions
-        const allDirections = [
-            {q: 1, r: 0}, {q: 0, r: 1}, {q: -1, r: 1},
-            {q: -1, r: 0}, {q: 0, r: -1}, {q: 1, r: -1}
+        // For a line in hexagonal grid, there are only 2 truly perpendicular directions
+        // We need to find the two directions that are 60° rotated from the line direction
+        
+        // Hex directions in order (clockwise)
+        const hexDirs = [
+            {q: 1, r: 0},   // 0°
+            {q: 0, r: 1},   // 60°
+            {q: -1, r: 1},  // 120°
+            {q: -1, r: 0},  // 180°
+            {q: 0, r: -1},  // 240°
+            {q: 1, r: -1}   // 300°
         ];
         
-        // Filter out the line direction and its opposite
-        return allDirections.filter(dir => {
-            return !(dir.q === lineDirection.q && dir.r === lineDirection.r) &&
-                   !(dir.q === -lineDirection.q && dir.r === -lineDirection.r);
-        });
+        // Find the index of our line direction
+        const lineIndex = hexDirs.findIndex(dir => 
+            dir.q === lineDirection.q && dir.r === lineDirection.r
+        );
+        
+        if (lineIndex === -1) return [];
+        
+        // Get the two perpendicular directions (±2 positions in the array)
+        const perp1Index = (lineIndex + 2) % 6;
+        const perp2Index = (lineIndex + 4) % 6;
+        
+        return [hexDirs[perp1Index], hexDirs[perp2Index]];
     }
     
     drawGroupMoveIndicator(destinations) {
