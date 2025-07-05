@@ -8,6 +8,7 @@ class WorkingMultiplayer {
         this.peer = null;
         this.connection = null;
         this.myColor = null; // 'white' for host, 'black' for guest
+        this.isResetting = false; // Prevent reset loops
         
         this.setupEventListeners();
     }
@@ -148,7 +149,9 @@ class WorkingMultiplayer {
         document.getElementById('game-mode').textContent = `${this.isHost ? 'Host' : 'Guest'} (${this.myColor})`;
         
         // Reset game to standard starting position with black to move first
+        this.isResetting = true;
         this.game.reset();
+        this.isResetting = false;
         
         // Sync game state if host
         if (this.isHost) {
@@ -224,7 +227,9 @@ class WorkingMultiplayer {
     }
     
     handleRemoteReset() {
+        this.isResetting = true;
         this.game.reset();
+        this.isResetting = false;
         this.updateTurnIndicator();
     }
     
@@ -251,9 +256,11 @@ class WorkingMultiplayer {
     }
     
     sendReset() {
-        this.sendMessage({
-            type: 'reset'
-        });
+        if (!this.isResetting) {
+            this.sendMessage({
+                type: 'reset'
+            });
+        }
     }
     
     generateGameCode() {

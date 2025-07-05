@@ -28,7 +28,7 @@ function initializeGame() {
     };
     
     game.onGameReset = () => {
-        if (multiplayer.isConnected) {
+        if (multiplayer.isConnected && !multiplayer.isResetting) {
             multiplayer.sendReset();
             multiplayer.updateTurnIndicator();
         }
