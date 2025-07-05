@@ -381,6 +381,7 @@ class AbaloneGame {
         } else {
             console.log('This should be a sidestep move, validating...');
             // Check if it's a valid sidestep move
+            console.log('About to call isValidSidestepMove with:', pieces, to);
             const result = this.isValidSidestepMove(pieces, to);
             console.log('Sidestep validation result:', result);
             return result;
