@@ -214,7 +214,7 @@ class AbaloneGame {
     }
     
     isValidPush(pieces, to) {
-        // For push moves, pieces must be in line toward the destination
+        // For single piece moves
         if (pieces.length === 1) {
             const toKey = `${to.q},${to.r}`;
             const destinationPiece = this.board.get(toKey);
@@ -228,17 +228,22 @@ class AbaloneGame {
             }
         }
         
-        // For multi-piece moves, check if they're moving inline (push direction)
-        const direction = this.getDirection(pieces[0], to);
-        if (!direction) return false;
-        
-        // Check if all pieces are in a line in this direction
-        const sortedPieces = this.sortPiecesInDirection(pieces, direction);
-        if (!this.areConsecutiveInDirection(sortedPieces, direction)) {
+        // For multi-piece moves: inline movement (forward/backward)
+        // Check if pieces are in a straight line
+        if (!this.areInLine(pieces)) {
             return false;
         }
         
-        // Check the push path
+        // Check if destination is inline with the piece formation
+        if (!this.isInlineMove(pieces, to)) {
+            return false;
+        }
+        
+        // Sort pieces from back to front in movement direction
+        const direction = this.getDirection(pieces[0], to);
+        const sortedPieces = this.sortPiecesInDirection(pieces, direction);
+        
+        // Check if this is a valid push (moving forward into opponents)
         return this.canPush(sortedPieces, direction);
     }
     
@@ -249,16 +254,27 @@ class AbaloneGame {
             return false;
         }
         
-        // Check if all pieces can move to adjacent empty spaces (broadside move)
-        const direction = this.getDirection(pieces[0], to);
-        if (!direction) return false;
-        
-        // First check if pieces are in a valid line for sidestep
+        // Check if pieces are in a valid line
         if (!this.areInLine(pieces)) {
             return false;
         }
         
-        // Check if all pieces can move to their new positions
+        // Check if this is a sideways move (perpendicular to the line)
+        if (this.isInlineMove(pieces, to)) {
+            return false; // Inline moves are handled by push logic
+        }
+        
+        // Get the movement direction
+        const direction = this.getDirection(pieces[0], to);
+        if (!direction) return false;
+        
+        // Check if move is perpendicular to piece line
+        const lineDirection = this.getDirection(pieces[0], pieces[1]);
+        if (!this.isPerpendicular(direction, lineDirection)) {
+            return false;
+        }
+        
+        // For sidestep, ALL destination positions must be empty
         for (const piece of pieces) {
             const newPos = {
                 q: piece.q + direction.q,
@@ -266,7 +282,7 @@ class AbaloneGame {
             };
             const key = `${newPos.q},${newPos.r}`;
             
-            // Must be on board and empty
+            // Must be on board and completely empty
             if (!this.board.has(key) || this.board.get(key) !== null) {
                 return false;
             }
@@ -275,15 +291,56 @@ class AbaloneGame {
         return true;
     }
     
+    isPerpendicular(dir1, dir2) {
+        // Check if two directions are perpendicular in hex grid
+        // In hex coordinates, perpendicular directions have dot product = 0
+        return (dir1.q * dir2.q + dir1.r * dir2.r + (dir1.q + dir1.r) * (dir2.q + dir2.r)) === 0;
+    }
+    
     areInLine(pieces) {
         if (pieces.length <= 1) return true;
-        if (pieces.length === 2) return true; // Any 2 pieces form a line
+        if (pieces.length === 2) return this.isAdjacent(pieces[0], pieces[1]);
         
-        // For 3 pieces, check if they're all in the same direction
+        // For 3 pieces, check if they're all consecutive in the same direction
         const dir1 = this.getDirection(pieces[0], pieces[1]);
         const dir2 = this.getDirection(pieces[1], pieces[2]);
         
-        return dir1 && dir2 && dir1.q === dir2.q && dir1.r === dir2.r;
+        return dir1 && dir2 && dir1.q === dir2.q && dir1.r === dir2.r &&
+               this.isAdjacent(pieces[0], pieces[1]) && this.isAdjacent(pieces[1], pieces[2]);
+    }
+    
+    isInlineMove(pieces, to) {
+        // Check if the destination is exactly one step forward or backward from the line
+        if (pieces.length === 1) return true;
+        
+        // Get the direction of the piece line
+        const lineDirection = this.getDirection(pieces[0], pieces[1]);
+        if (!lineDirection) return false;
+        
+        // Sort pieces to find front and back
+        const sortedPieces = this.sortPiecesInDirection(pieces, lineDirection);
+        const frontPiece = sortedPieces[sortedPieces.length - 1];
+        const backPiece = sortedPieces[0];
+        
+        // Check if destination is one step forward from front piece
+        const frontStep = {
+            q: frontPiece.q + lineDirection.q,
+            r: frontPiece.r + lineDirection.r
+        };
+        if (to.q === frontStep.q && to.r === frontStep.r) {
+            return true;
+        }
+        
+        // Check if destination is one step backward from back piece
+        const backStep = {
+            q: backPiece.q - lineDirection.q,
+            r: backPiece.r - lineDirection.r
+        };
+        if (to.q === backStep.q && to.r === backStep.r) {
+            return true;
+        }
+        
+        return false;
     }
     
     getDirection(from, to) {
