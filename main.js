@@ -14,10 +14,14 @@ function initializeGame() {
     // Initialize multiplayer manager
     multiplayer = new WorkingMultiplayer(game);
     
+    // Make multiplayer globally accessible for game logic
+    window.multiplayer = multiplayer;
+    
     // Extend game with multiplayer support
     game.onMoveComplete = (move) => {
         if (multiplayer.isConnected) {
             multiplayer.sendMove(move);
+            multiplayer.updateTurnIndicator();
         }
         updateUI();
         addMoveToHistory(move);
@@ -26,6 +30,7 @@ function initializeGame() {
     game.onGameReset = () => {
         if (multiplayer.isConnected) {
             multiplayer.sendReset();
+            multiplayer.updateTurnIndicator();
         }
         updateUI();
         clearMoveHistory();

@@ -7,6 +7,7 @@ class WorkingMultiplayer {
         this.gameCode = null;
         this.peer = null;
         this.connection = null;
+        this.myColor = null; // 'white' for host, 'black' for guest
         
         this.setupEventListeners();
     }
@@ -128,7 +129,14 @@ class WorkingMultiplayer {
     
     onConnectionEstablished() {
         this.isConnected = true;
-        this.updateConnectionStatus('Connected! You can now play.');
+        
+        // Assign player colors
+        this.myColor = this.isHost ? 'white' : 'black';
+        
+        const statusText = this.isHost ? 
+            'Connected! You are White (bottom player)' : 
+            'Connected! You are Black (top player)';
+        this.updateConnectionStatus(statusText);
         
         // Hide connection UI
         document.getElementById('game-code-display').style.display = 'none';
@@ -137,12 +145,18 @@ class WorkingMultiplayer {
         document.getElementById('host-game').disabled = true;
         document.getElementById('join-game').disabled = true;
         document.getElementById('game-code').disabled = true;
-        document.getElementById('game-mode').textContent = this.isHost ? 'Host' : 'Guest';
+        document.getElementById('game-mode').textContent = `${this.isHost ? 'Host' : 'Guest'} (${this.myColor})`;
+        
+        // Reset game to standard starting position with black to move first
+        this.game.reset();
         
         // Sync game state if host
         if (this.isHost) {
             this.sendGameState();
         }
+        
+        // Update UI to show whose turn it is
+        this.updateTurnIndicator();
     }
     
     onConnectionLost() {
@@ -193,6 +207,7 @@ class WorkingMultiplayer {
             this.game.switchPlayer();
             this.game.render();
             this.game.updateUI();
+            this.updateTurnIndicator();
         }
     }
     
@@ -210,6 +225,7 @@ class WorkingMultiplayer {
     
     handleRemoteReset() {
         this.game.reset();
+        this.updateTurnIndicator();
     }
     
     sendMove(move) {
@@ -267,6 +283,40 @@ class WorkingMultiplayer {
     showGameCode() {
         document.getElementById('generated-code').textContent = this.gameCode;
         document.getElementById('game-code-display').style.display = 'block';
+    }
+    
+    // Check if it's the current player's turn
+    isMyTurn() {
+        if (!this.isConnected || !this.myColor) {
+            return true; // Local game, allow all moves
+        }
+        return this.game.currentPlayer === this.myColor;
+    }
+    
+    // Update turn indicator in the UI
+    updateTurnIndicator() {
+        if (!this.isConnected) return;
+        
+        const currentPlayerElement = document.getElementById('current-player');
+        const isMyTurn = this.isMyTurn();
+        
+        if (isMyTurn) {
+            currentPlayerElement.style.color = this.myColor === 'black' ? '#333' : '#666';
+            currentPlayerElement.style.fontWeight = 'bold';
+            this.updateConnectionStatus(`Your turn! (${this.myColor})`);
+        } else {
+            currentPlayerElement.style.color = '#999';
+            currentPlayerElement.style.fontWeight = 'normal';
+            this.updateConnectionStatus(`Waiting for opponent's move...`);
+        }
+    }
+    
+    // Override the game's move handling for multiplayer
+    canMakeMove() {
+        if (!this.isConnected) {
+            return true; // Local game
+        }
+        return this.isMyTurn();
     }
     
     disconnect() {

@@ -105,6 +105,11 @@ class AbaloneGame {
     }
     
     handleHexClick(hex) {
+        // Check if this player can make moves (for multiplayer)
+        if (window.multiplayer && !window.multiplayer.canMakeMove()) {
+            return; // Not this player's turn
+        }
+        
         const key = `${hex.q},${hex.r}`;
         const piece = this.board.get(key);
         
@@ -211,7 +216,17 @@ class AbaloneGame {
     isValidPush(pieces, to) {
         // For push moves, pieces must be in line toward the destination
         if (pieces.length === 1) {
-            return this.isAdjacent(pieces[0], to);
+            const toKey = `${to.q},${to.r}`;
+            const destinationPiece = this.board.get(toKey);
+            
+            // Single piece can move to empty space or push 1 opponent (but can't actually push)
+            if (destinationPiece === null) {
+                return this.isAdjacent(pieces[0], to);
+            } else if (destinationPiece !== this.currentPlayer) {
+                // Single piece cannot push opponents
+                return false;
+            }
+            return false;
         }
         
         // Check if pieces are in line and moving toward destination
@@ -284,7 +299,11 @@ class AbaloneGame {
     }
     
     canPush(pieces, direction) {
-        // Check if the push is valid (can push opponent pieces)
+        // Check if the push is valid according to Abalone rules:
+        // - 2 pieces can push 1 opponent piece
+        // - 3 pieces can push 1 or 2 opponent pieces
+        // - You must have numerical superiority
+        
         const frontPiece = pieces[pieces.length - 1];
         let checkPos = {
             q: frontPiece.q + direction.q,
@@ -293,14 +312,13 @@ class AbaloneGame {
         
         let opponentCount = 0;
         
-        // Count opponent pieces in front
+        // Count consecutive opponent pieces in front
         while (this.board.has(`${checkPos.q},${checkPos.r}`)) {
             const piece = this.board.get(`${checkPos.q},${checkPos.r}`);
-            if (piece === null) break;
+            if (piece === null) break; // Empty space, stop counting
             if (piece === this.currentPlayer) return false; // Can't push own pieces
             
             opponentCount++;
-            if (opponentCount >= pieces.length) return false; // Can't push more pieces than pushing
             
             checkPos = {
                 q: checkPos.q + direction.q,
@@ -308,9 +326,22 @@ class AbaloneGame {
             };
         }
         
-        // Must have space to push into or push off board
-        return !this.board.has(`${checkPos.q},${checkPos.r}`) || 
-               this.board.get(`${checkPos.q},${checkPos.r}`) === null;
+        // Check if we can push this many opponents
+        if (opponentCount === 0) {
+            // No opponents to push - this should be a regular move
+            return true;
+        }
+        
+        // Apply Abalone push rules
+        if (pieces.length === 1) {
+            return false; // 1 piece cannot push any opponents
+        } else if (pieces.length === 2) {
+            return opponentCount === 1; // 2 pieces can only push 1 opponent
+        } else if (pieces.length === 3) {
+            return opponentCount <= 2; // 3 pieces can push 1 or 2 opponents
+        }
+        
+        return false; // Should not reach here
     }
     
     makeMove(move) {
