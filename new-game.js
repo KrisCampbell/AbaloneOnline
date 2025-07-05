@@ -235,12 +235,17 @@ class AbaloneGame {
     findSidestepMove(clickedHex) {
         if (this.selectedPieces.length < 2) return null;
         
+        console.log('Finding sidestep move for clicked hex:', clickedHex);
+        
         // Get line direction
         const lineDirection = this.getLineDirection(this.selectedPieces);
         if (!lineDirection) return null;
         
+        console.log('Line direction:', lineDirection);
+        
         // Get perpendicular directions
         const perpDirections = this.getPerpendicularDirections(lineDirection);
+        console.log('Perpendicular directions:', perpDirections);
         
         for (const direction of perpDirections) {
             // Check if all pieces can move in this direction
@@ -261,22 +266,28 @@ class AbaloneGame {
                 destinations.push(newPos);
             }
             
+            console.log('Direction:', direction, 'Can move:', canMove, 'Destinations:', destinations);
+            
             // If this is a valid sidestep direction and the clicked hex is one of the destinations
             if (canMove && destinations.some(dest => dest.q === clickedHex.q && dest.r === clickedHex.r)) {
+                console.log('Found matching destination!');
                 // For sidestep moves, we need to return the first piece's destination as the "to" field
                 // But the actual move logic will handle moving all pieces
                 const firstPieceDestination = {
                     q: this.selectedPieces[0].q + direction.q,
                     r: this.selectedPieces[0].r + direction.r
                 };
-                return {
+                const move = {
                     from: [...this.selectedPieces],
                     to: firstPieceDestination,
                     player: this.currentPlayer
                 };
+                console.log('Returning sidestep move:', move);
+                return move;
             }
         }
         
+        console.log('No matching sidestep move found');
         return null;
     }
     
@@ -837,7 +848,8 @@ class AbaloneGame {
         // Get perpendicular directions
         const perpDirections = this.getPerpendicularDirections(lineDirection);
         
-        for (const direction of perpDirections) {
+        for (let i = 0; i < perpDirections.length; i++) {
+            const direction = perpDirections[i];
             // Check if all pieces can move in this direction
             let canMove = true;
             const destinations = [];
@@ -857,8 +869,8 @@ class AbaloneGame {
             }
             
             if (canMove) {
-                // Draw special group move indicator
-                this.drawGroupMoveIndicator(destinations);
+                // Draw special group move indicator with direction info
+                this.drawGroupMoveIndicator(destinations, i);
             }
         }
     }
@@ -891,43 +903,43 @@ class AbaloneGame {
         return [hexDirs[perp1Index], hexDirs[perp2Index]];
     }
     
-    drawGroupMoveIndicator(destinations) {
+    drawGroupMoveIndicator(destinations, direction) {
         const { ctx } = this;
         
-        // Draw connecting rectangle/highlight across all destination positions
-        const pixels = destinations.map(dest => this.hexToPixel(dest));
-        
-        if (pixels.length < 2) return;
-        
-        // Draw a rectangle connecting all positions
-        ctx.save();
-        ctx.globalAlpha = 0.3;
-        ctx.fillStyle = '#FF9800'; // Orange for group moves
-        
-        // Find bounding box
-        const minX = Math.min(...pixels.map(p => p.x)) - this.hexRadius;
-        const maxX = Math.max(...pixels.map(p => p.x)) + this.hexRadius;
-        const minY = Math.min(...pixels.map(p => p.y)) - this.hexRadius;
-        const maxY = Math.max(...pixels.map(p => p.y)) + this.hexRadius;
-        
-        ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
-        ctx.restore();
-        
-        // Also draw individual indicators on each destination
-        for (const pixel of pixels) {
-            this.drawSidestepIndicator(pixel.x, pixel.y);
+        // Draw individual indicators for each destination
+        for (let i = 0; i < destinations.length; i++) {
+            const dest = destinations[i];
+            const pixel = this.hexToPixel(dest);
+            
+            // Use different colors or styles to distinguish between the two directions
+            // You can click on any destination in a direction to move the whole group
+            this.drawSidestepIndicator(pixel.x, pixel.y, direction);
         }
     }
     
-    drawSidestepIndicator(x, y) {
+    drawSidestepIndicator(x, y, directionIndex) {
         const { ctx } = this;
-        ctx.beginPath();
-        ctx.arc(x, y, 8, 0, 2 * Math.PI);
-        ctx.fillStyle = 'rgba(255, 152, 0, 0.8)'; // Orange
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 111, 0, 1)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        
+        // Use different shapes/colors for different directions
+        if (directionIndex === 0) {
+            // First direction: Orange circles
+            ctx.beginPath();
+            ctx.arc(x, y, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(255, 152, 0, 0.8)'; // Orange
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 111, 0, 1)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        } else {
+            // Second direction: Blue squares
+            ctx.save();
+            ctx.fillStyle = 'rgba(33, 150, 243, 0.8)'; // Blue
+            ctx.fillRect(x - 8, y - 8, 16, 16);
+            ctx.strokeStyle = 'rgba(25, 118, 210, 1)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x - 8, y - 8, 16, 16);
+            ctx.restore();
+        }
     }
     
     drawMoveIndicator(x, y) {
