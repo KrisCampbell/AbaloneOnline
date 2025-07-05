@@ -237,17 +237,10 @@ class AbaloneGame {
         
         console.log('Finding sidestep move for clicked hex:', clickedHex);
         
-        // Get line direction
-        const lineDirection = this.getLineDirection(this.selectedPieces);
-        if (!lineDirection) return null;
+        // Get all possible sidestep directions (4 perpendicular directions)
+        const sidestepDirections = this.getSidestepDirections();
         
-        console.log('Line direction:', lineDirection);
-        
-        // Get perpendicular directions
-        const perpDirections = this.getPerpendicularDirections(lineDirection);
-        console.log('Perpendicular directions:', perpDirections);
-        
-        for (const direction of perpDirections) {
+        for (const direction of sidestepDirections) {
             // Check if all pieces can move in this direction
             let canMove = true;
             const destinations = [];
@@ -271,24 +264,16 @@ class AbaloneGame {
             // If this is a valid sidestep direction and the clicked hex is one of the destinations
             if (canMove && destinations.some(dest => dest.q === clickedHex.q && dest.r === clickedHex.r)) {
                 console.log('Found matching destination!');
-                // For sidestep moves, we need to return the move with the correct "to" position
-                // Find which piece corresponds to the clicked destination
-                const pieceIndex = destinations.findIndex(dest => dest.q === clickedHex.q && dest.r === clickedHex.r);
-                if (pieceIndex !== -1) {
-                    // Use the first piece's destination as the "to" field for validation
-                    // This ensures the move direction calculation is correct
-                    const firstDestination = {
-                        q: this.selectedPieces[0].q + direction.q,
-                        r: this.selectedPieces[0].r + direction.r
-                    };
-                    const move = {
-                        from: [...this.selectedPieces],
-                        to: firstDestination,
-                        player: this.currentPlayer
-                    };
-                    console.log('Returning sidestep move:', move);
-                    return move;
-                }
+                // Return a sidestep move - use the direction itself to encode the move
+                const move = {
+                    from: [...this.selectedPieces],
+                    to: clickedHex, // The actual clicked destination
+                    player: this.currentPlayer,
+                    isSidestep: true,
+                    sidestepDirection: direction
+                };
+                console.log('Returning sidestep move:', move);
+                return move;
             }
         }
         
@@ -389,11 +374,16 @@ class AbaloneGame {
             return this.board.get(toKey) === null;
         } else {
             console.log('This should be a sidestep move, validating...');
-            // Check if it's a valid sidestep move
-            console.log('About to call isValidSidestepMove with:', pieces, to);
-            const result = this.isValidSidestepMove(pieces, to);
-            console.log('Sidestep validation result:', result);
-            return result;
+            // Check if it's a marked sidestep move
+            if (move.isSidestep) {
+                console.log('Validating marked sidestep move');
+                const result = this.isValidSidestepMove(move);
+                console.log('Sidestep validation result:', result);
+                return result;
+            } else {
+                console.log('Not a valid inline move and not marked as sidestep');
+                return false;
+            }
         }
     }
     
@@ -449,38 +439,22 @@ class AbaloneGame {
         return false;
     }
     
-    isValidSidestepMove(pieces, to) {
-        console.log('Validating sidestep move with pieces:', pieces, 'to:', to);
+    isValidSidestepMove(move) {
+        const { from: pieces, isSidestep, sidestepDirection } = move;
         
-        // Get movement direction
-        const moveDirection = this.getDirection(pieces[0], to);
-        console.log('Move direction:', moveDirection);
-        if (!moveDirection) {
-            console.log('Sidestep failed: no move direction');
-            return false;
-        }
+        console.log('Validating sidestep move with pieces:', pieces, 'direction:', sidestepDirection);
         
-        // Get line direction
-        const lineDirection = this.getLineDirection(pieces);
-        console.log('Line direction:', lineDirection);
-        if (!lineDirection) {
-            console.log('Sidestep failed: no line direction');
-            return false;
-        }
-        
-        // Check if move is perpendicular to line
-        const isPerpendicular = this.isPerpendicular(moveDirection, lineDirection);
-        console.log('Is perpendicular?', isPerpendicular);
-        if (!isPerpendicular) {
-            console.log('Sidestep failed: not perpendicular');
+        // If this is marked as a sidestep move, validate it as such
+        if (!isSidestep || !sidestepDirection) {
+            console.log('Not a marked sidestep move');
             return false;
         }
         
         // Check all destinations are empty
         for (const piece of pieces) {
             const newPos = {
-                q: piece.q + moveDirection.q,
-                r: piece.r + moveDirection.r
+                q: piece.q + sidestepDirection.q,
+                r: piece.r + sidestepDirection.r
             };
             const key = `${newPos.q},${newPos.r}`;
             
@@ -562,7 +536,7 @@ class AbaloneGame {
             this.board.set(fromKey, null);
         } else {
             // Group move
-            this.executeGroupMove(from, to, moveRecord);
+            this.executeGroupMove(from, to, moveRecord, move);
         }
         
         this.gameHistory.push(moveRecord);
@@ -570,7 +544,7 @@ class AbaloneGame {
         this.checkWinCondition();
     }
     
-    executeGroupMove(pieces, to, moveRecord) {
+    executeGroupMove(pieces, to, moveRecord, move) {
         const direction = this.getLineDirection(pieces);
         const sorted = this.sortPiecesInDirection(pieces, direction);
         
@@ -585,8 +559,9 @@ class AbaloneGame {
             // Inline move (forward)
             this.executeInlineMove(sorted, direction, moveRecord);
         } else {
-            // Sidestep move
-            this.executeSidestepMove(pieces, to);
+            // Sidestep move - if it's a marked sidestep, use that direction
+            const sidestepDirection = move.sidestepDirection || this.getDirection(pieces[0], to);
+            this.executeSidestepMove(pieces, sidestepDirection);
         }
     }
     
@@ -646,8 +621,8 @@ class AbaloneGame {
         }
     }
     
-    executeSidestepMove(pieces, to) {
-        const direction = this.getDirection(pieces[0], to);
+    executeSidestepMove(pieces, direction) {
+        console.log('Executing sidestep move with pieces:', pieces, 'direction:', direction);
         
         // Clear original positions
         for (const piece of pieces) {
@@ -663,6 +638,7 @@ class AbaloneGame {
             };
             const key = `${newPos.q},${newPos.r}`;
             this.board.set(key, this.currentPlayer);
+            console.log('Moved piece from', piece, 'to', newPos);
         }
     }
     
@@ -901,15 +877,11 @@ class AbaloneGame {
     drawSidestepMoves() {
         if (this.selectedPieces.length < 2) return;
         
-        // Get all possible perpendicular directions
-        const lineDirection = this.getLineDirection(this.selectedPieces);
-        if (!lineDirection) return;
+        // Get all possible sidestep directions
+        const sidestepDirections = this.getSidestepDirections();
         
-        // Get perpendicular directions
-        const perpDirections = this.getPerpendicularDirections(lineDirection);
-        
-        for (let i = 0; i < perpDirections.length; i++) {
-            const direction = perpDirections[i];
+        for (let i = 0; i < sidestepDirections.length; i++) {
+            const direction = sidestepDirections[i];
             // Check if all pieces can move in this direction
             let canMove = true;
             const destinations = [];
@@ -929,38 +901,37 @@ class AbaloneGame {
             }
             
             if (canMove) {
-                // Draw special group move indicator with direction info
-                this.drawGroupMoveIndicator(destinations, i);
+                // Only draw indicators for this direction if it's different from inline moves
+                if (!this.isInlineDirection(direction)) {
+                    this.drawGroupMoveIndicator(destinations, i);
+                }
             }
         }
     }
     
-    getPerpendicularDirections(lineDirection) {
-        // For a line in hexagonal grid, there are only 2 truly perpendicular directions
-        // We need to find the two directions that are 60° rotated from the line direction
-        
-        // Hex directions in order (clockwise)
-        const hexDirs = [
-            {q: 1, r: 0},   // 0°
-            {q: 0, r: 1},   // 60°
-            {q: -1, r: 1},  // 120°
-            {q: -1, r: 0},  // 180°
-            {q: 0, r: -1},  // 240°
-            {q: 1, r: -1}   // 300°
+    getSidestepDirections() {
+        // Return all 6 hex directions - we'll filter valid ones during validation
+        // This is simpler than trying to calculate perpendicular directions
+        return [
+            {q: 1, r: 0},   // right
+            {q: 0, r: 1},   // down-right  
+            {q: -1, r: 1},  // down-left
+            {q: -1, r: 0},  // left
+            {q: 0, r: -1},  // up-left
+            {q: 1, r: -1}   // up-right
         ];
+    }
+    
+    isInlineDirection(direction) {
+        // Check if this direction is the same as the line direction (forward/backward)
+        if (this.selectedPieces.length < 2) return false;
         
-        // Find the index of our line direction
-        const lineIndex = hexDirs.findIndex(dir => 
-            dir.q === lineDirection.q && dir.r === lineDirection.r
-        );
+        const lineDirection = this.getLineDirection(this.selectedPieces);
+        if (!lineDirection) return false;
         
-        if (lineIndex === -1) return [];
-        
-        // Get the two perpendicular directions (±2 positions in the array)
-        const perp1Index = (lineIndex + 2) % 6;
-        const perp2Index = (lineIndex + 4) % 6;
-        
-        return [hexDirs[perp1Index], hexDirs[perp2Index]];
+        // Check if direction matches line direction (forward or backward)
+        return (direction.q === lineDirection.q && direction.r === lineDirection.r) ||
+               (direction.q === -lineDirection.q && direction.r === -lineDirection.r);
     }
     
     drawGroupMoveIndicator(destinations, direction) {
