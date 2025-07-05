@@ -140,6 +140,7 @@ class AbaloneGame {
                     this.render();
                 } else {
                     // Invalid move, clear selection
+                    console.log('Invalid move from', move.from, 'to', move.to);
                     this.selectedPieces = [];
                     this.render();
                 }
@@ -219,14 +220,13 @@ class AbaloneGame {
             const toKey = `${to.q},${to.r}`;
             const destinationPiece = this.board.get(toKey);
             
-            // Single piece can move to empty space or push 1 opponent (but can't actually push)
+            // Single piece can only move to empty adjacent space
             if (destinationPiece === null) {
                 return this.isAdjacent(pieces[0], to);
-            } else if (destinationPiece !== this.currentPlayer) {
-                // Single piece cannot push opponents
+            } else {
+                // Single piece cannot move to occupied space or push opponents
                 return false;
             }
-            return false;
         }
         
         // Check if pieces are in line and moving toward destination
@@ -251,8 +251,8 @@ class AbaloneGame {
     isValidSidestep(pieces, to) {
         // For sidestep moves, pieces move perpendicular to their line
         if (pieces.length === 1) {
-            const toKey = `${to.q},${to.r}`;
-            return this.board.get(toKey) === null;
+            // Single piece movement is handled by isValidPush
+            return false;
         }
         
         // Check if all pieces can move to adjacent empty spaces
