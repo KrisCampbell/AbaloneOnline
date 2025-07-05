@@ -228,23 +228,18 @@ class AbaloneGame {
             }
         }
         
-        // Check if pieces are in line and moving toward destination
+        // For multi-piece moves, check if they're moving inline (push direction)
         const direction = this.getDirection(pieces[0], to);
         if (!direction) return false;
         
-        // Check if pieces are consecutive in the push direction
-        for (let i = 1; i < pieces.length; i++) {
-            const expectedPos = {
-                q: pieces[i-1].q + direction.q,
-                r: pieces[i-1].r + direction.r
-            };
-            if (pieces[i].q !== expectedPos.q || pieces[i].r !== expectedPos.r) {
-                return false;
-            }
+        // Check if all pieces are in a line in this direction
+        const sortedPieces = this.sortPiecesInDirection(pieces, direction);
+        if (!this.areConsecutiveInDirection(sortedPieces, direction)) {
+            return false;
         }
         
         // Check the push path
-        return this.canPush(pieces, direction);
+        return this.canPush(sortedPieces, direction);
     }
     
     isValidSidestep(pieces, to) {
@@ -254,22 +249,41 @@ class AbaloneGame {
             return false;
         }
         
-        // Check if all pieces can move to adjacent empty spaces
+        // Check if all pieces can move to adjacent empty spaces (broadside move)
         const direction = this.getDirection(pieces[0], to);
         if (!direction) return false;
         
+        // First check if pieces are in a valid line for sidestep
+        if (!this.areInLine(pieces)) {
+            return false;
+        }
+        
+        // Check if all pieces can move to their new positions
         for (const piece of pieces) {
             const newPos = {
                 q: piece.q + direction.q,
                 r: piece.r + direction.r
             };
             const key = `${newPos.q},${newPos.r}`;
+            
+            // Must be on board and empty
             if (!this.board.has(key) || this.board.get(key) !== null) {
                 return false;
             }
         }
         
         return true;
+    }
+    
+    areInLine(pieces) {
+        if (pieces.length <= 1) return true;
+        if (pieces.length === 2) return true; // Any 2 pieces form a line
+        
+        // For 3 pieces, check if they're all in the same direction
+        const dir1 = this.getDirection(pieces[0], pieces[1]);
+        const dir2 = this.getDirection(pieces[1], pieces[2]);
+        
+        return dir1 && dir2 && dir1.q === dir2.q && dir1.r === dir2.r;
     }
     
     getDirection(from, to) {
@@ -295,6 +309,29 @@ class AbaloneGame {
             a = temp;
         }
         return a;
+    }
+    
+    sortPiecesInDirection(pieces, direction) {
+        // Sort pieces from back to front in the movement direction
+        return [...pieces].sort((a, b) => {
+            const projA = a.q * direction.q + a.r * direction.r;
+            const projB = b.q * direction.q + b.r * direction.r;
+            return projA - projB;
+        });
+    }
+    
+    areConsecutiveInDirection(pieces, direction) {
+        // Check if pieces are consecutive in the given direction
+        for (let i = 1; i < pieces.length; i++) {
+            const expectedPos = {
+                q: pieces[i-1].q + direction.q,
+                r: pieces[i-1].r + direction.r
+            };
+            if (pieces[i].q !== expectedPos.q || pieces[i].r !== expectedPos.r) {
+                return false;
+            }
+        }
+        return true;
     }
     
     canPush(pieces, direction) {
@@ -558,6 +595,11 @@ class AbaloneGame {
             this.drawSelectionHighlight(pixel.x, pixel.y);
         }
         
+        // Draw legal move indicators if pieces are selected
+        if (this.selectedPieces.length > 0) {
+            this.drawLegalMoveIndicators();
+        }
+        
         // Draw hover highlight
         if (this.hoveredHex) {
             const pixel = this.hexToPixel(this.hoveredHex);
@@ -617,6 +659,41 @@ class AbaloneGame {
         ctx.arc(x, y, this.hexRadius * 0.8, 0, 2 * Math.PI);
         ctx.strokeStyle = '#2196F3';
         ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+    
+    drawLegalMoveIndicators() {
+        if (this.selectedPieces.length === 0) return;
+        
+        const { ctx } = this;
+        
+        // Check all possible destinations
+        this.board.forEach((piece, key) => {
+            const [q, r] = key.split(',').map(Number);
+            const hex = { q, r };
+            
+            // Test if this is a valid move destination
+            const move = {
+                from: [...this.selectedPieces],
+                to: hex,
+                player: this.currentPlayer
+            };
+            
+            if (this.isValidMove(move)) {
+                const pixel = this.hexToPixel(hex);
+                this.drawMoveIndicator(pixel.x, pixel.y);
+            }
+        });
+    }
+    
+    drawMoveIndicator(x, y) {
+        const { ctx } = this;
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(128, 128, 128, 0.6)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(96, 96, 96, 0.8)';
+        ctx.lineWidth = 1;
         ctx.stroke();
     }
 }
