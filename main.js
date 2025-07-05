@@ -103,6 +103,23 @@ function setupUIEventListeners() {
         // Optionally adjust canvas size for mobile
         adjustCanvasSize();
     });
+    
+    // Game end modal event listeners
+    document.getElementById('play-again-btn').addEventListener('click', () => {
+        hideGameEndModal();
+        game.reset();
+    });
+    
+    document.getElementById('close-modal-btn').addEventListener('click', () => {
+        hideGameEndModal();
+    });
+    
+    // Close modal when clicking outside of it
+    document.getElementById('game-end-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'game-end-modal') {
+            hideGameEndModal();
+        }
+    });
 }
 
 function updateUI() {
@@ -130,14 +147,21 @@ function updateUI() {
 
 function showGameEndMessage() {
     const winner = game.winner;
-    const message = `Game Over! ${winner.charAt(0).toUpperCase() + winner.slice(1)} wins!`;
+    const winnerName = winner.charAt(0).toUpperCase() + winner.slice(1);
     
-    // Create a modal or alert
+    // Update modal content
+    document.getElementById('game-end-message').textContent = `🎉 ${winnerName} Wins! 🎉`;
+    document.getElementById('final-black-score').textContent = game.blackScore;
+    document.getElementById('final-white-score').textContent = game.whiteScore;
+    
+    // Show the modal
     setTimeout(() => {
-        if (confirm(`${message}\n\nWould you like to play again?`)) {
-            game.reset();
-        }
+        document.getElementById('game-end-modal').style.display = 'flex';
     }, 500);
+}
+
+function hideGameEndModal() {
+    document.getElementById('game-end-modal').style.display = 'none';
 }
 
 function addMoveToHistory(move) {

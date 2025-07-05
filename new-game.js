@@ -653,12 +653,14 @@ class AbaloneGame {
     }
     
     checkWinCondition() {
+        // blackScore = white pieces captured by black = black wins
+        // whiteScore = black pieces captured by white = white wins
         if (this.blackScore >= 6) {
             this.gameEnded = true;
-            this.winner = 'white';
+            this.winner = 'black';
         } else if (this.whiteScore >= 6) {
             this.gameEnded = true;
-            this.winner = 'black';
+            this.winner = 'white';
         }
     }
     

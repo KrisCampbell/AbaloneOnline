@@ -65,9 +65,35 @@
         </div>
     </div>
 
+    <!-- Game End Modal -->
+    <div id="game-end-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="game-end-title">Game Over!</h2>
+            </div>
+            <div class="modal-body">
+                <div id="game-end-message"></div>
+                <div class="final-score">
+                    <div class="score-display">
+                        <span class="player-label">Black:</span>
+                        <span id="final-black-score">0</span>
+                    </div>
+                    <div class="score-display">
+                        <span class="player-label">White:</span>
+                        <span id="final-white-score">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="play-again-btn" class="btn btn-primary">Play Again</button>
+                <button id="close-modal-btn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <script src="new-game.js?v=1751753619"></script>
-    <script src="working-multiplayer.js?v=1751753619"></script>
-    <script src="main.js?v=1751753619"></script>
+    <script src="new-game.js?v=1751754277"></script>
+    <script src="working-multiplayer.js?v=1751754277"></script>
+    <script src="main.js?v=1751754277"></script>
 </body>
 </html>
