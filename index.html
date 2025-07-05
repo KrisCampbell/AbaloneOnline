@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abalone Online</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Abalone Online</h1>
+            <div class="game-status">
+                <div class="current-player">Current Player: <span id="current-player">Black</span></div>
+                <div class="game-mode">Mode: <span id="game-mode">Local</span></div>
+            </div>
+        </header>
+
+        <div class="game-area">
+            <div class="board-container">
+                <canvas id="game-board" width="600" height="600"></canvas>
+            </div>
+            
+            <div class="game-panel">
+                <div class="score-panel">
+                    <h3>Score</h3>
+                    <div class="score">
+                        <div class="player-score">
+                            <span class="player-name">Black:</span>
+                            <span id="black-score">0</span>
+                        </div>
+                        <div class="player-score">
+                            <span class="player-name">White:</span>
+                            <span id="white-score">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="multiplayer-panel">
+                    <h3>Multiplayer</h3>
+                    <div class="connection-status">
+                        <span id="connection-status">Disconnected</span>
+                    </div>
+                    <div class="multiplayer-controls">
+                        <button id="host-game">Host Game</button>
+                        <button id="join-game">Join Game</button>
+                        <input type="text" id="game-code" placeholder="Enter game code">
+                    </div>
+                    <div id="game-code-display" style="display: none;">
+                        <p>Game Code: <strong id="generated-code"></strong></p>
+                        <p>Share this code with your friend!</p>
+                    </div>
+                </div>
+
+                <div class="game-controls">
+                    <button id="reset-game">Reset Game</button>
+                    <button id="undo-move" disabled>Undo Move</button>
+                </div>
+
+                <div class="move-history">
+                    <h3>Move History</h3>
+                    <div id="history-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script src="multiplayer.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
