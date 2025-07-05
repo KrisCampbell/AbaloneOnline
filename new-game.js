@@ -508,7 +508,13 @@ class AbaloneGame {
     
     isPerpendicular(dir1, dir2) {
         // In hex grid, check if directions are perpendicular
-        const dot = dir1.q * dir2.q + dir1.r * dir2.r + (dir1.q + dir1.r) * (dir2.q + dir2.r);
+        // Two directions are perpendicular if their dot product in hexagonal coordinates is 0
+        // For hexagonal coordinates, we need to convert to cube coordinates for proper dot product
+        // Convert axial (q,r) to cube (x,y,z) where x=q, z=r, y=-q-r
+        const x1 = dir1.q, y1 = -dir1.q - dir1.r, z1 = dir1.r;
+        const x2 = dir2.q, y2 = -dir2.q - dir2.r, z2 = dir2.r;
+        
+        const dot = x1 * x2 + y1 * y2 + z1 * z2;
         return Math.abs(dot) < 0.001;
     }
     
