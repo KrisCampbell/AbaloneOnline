@@ -202,10 +202,69 @@ class AbaloneGame {
                 this.onMoveComplete(move);
             }
         } else {
+            // Check if this is a sidestep move to any of the pieces
+            if (this.selectedPieces.length > 1) {
+                const sidestepMove = this.findSidestepMove(hex);
+                if (sidestepMove && this.isValidMove(sidestepMove)) {
+                    this.makeMove(sidestepMove);
+                    this.selectedPieces = [];
+                    this.switchPlayer();
+                    this.render();
+                    
+                    // Notify multiplayer
+                    if (this.onMoveComplete) {
+                        this.onMoveComplete(sidestepMove);
+                    }
+                    return;
+                }
+            }
+            
             // Invalid move - clear selection
             this.selectedPieces = [];
             this.render();
         }
+    }
+    
+    findSidestepMove(clickedHex) {
+        if (this.selectedPieces.length < 2) return null;
+        
+        // Get line direction
+        const lineDirection = this.getLineDirection(this.selectedPieces);
+        if (!lineDirection) return null;
+        
+        // Get perpendicular directions
+        const perpDirections = this.getPerpendicularDirections(lineDirection);
+        
+        for (const direction of perpDirections) {
+            // Check if all pieces can move in this direction
+            let canMove = true;
+            const destinations = [];
+            
+            for (const piece of this.selectedPieces) {
+                const newPos = {
+                    q: piece.q + direction.q,
+                    r: piece.r + direction.r
+                };
+                const key = `${newPos.q},${newPos.r}`;
+                
+                if (!this.board.has(key) || this.board.get(key) !== null) {
+                    canMove = false;
+                    break;
+                }
+                destinations.push(newPos);
+            }
+            
+            // If this is a valid sidestep direction and the clicked hex is one of the destinations
+            if (canMove && destinations.some(dest => dest.q === clickedHex.q && dest.r === clickedHex.r)) {
+                return {
+                    from: [...this.selectedPieces],
+                    to: clickedHex,
+                    player: this.currentPlayer
+                };
+            }
+        }
+        
+        return null;
     }
     
     isValidMove(move) {
@@ -676,22 +735,172 @@ class AbaloneGame {
     }
     
     drawLegalMoveIndicators() {
-        // Test all possible destinations
-        this.board.forEach((piece, key) => {
-            const [q, r] = key.split(',').map(Number);
-            const hex = { q, r };
+        if (this.selectedPieces.length === 1) {
+            // Single piece moves
+            this.drawSinglePieceMoves();
+        } else if (this.selectedPieces.length > 1) {
+            // Group moves
+            this.drawGroupMoves();
+        }
+    }
+    
+    drawSinglePieceMoves() {
+        const piece = this.selectedPieces[0];
+        const directions = [
+            {q: 1, r: 0}, {q: 0, r: 1}, {q: -1, r: 1},
+            {q: -1, r: 0}, {q: 0, r: -1}, {q: 1, r: -1}
+        ];
+        
+        for (const dir of directions) {
+            const destination = {
+                q: piece.q + dir.q,
+                r: piece.r + dir.r
+            };
             
             const move = {
-                from: [...this.selectedPieces],
-                to: hex,
+                from: [piece],
+                to: destination,
                 player: this.currentPlayer
             };
             
             if (this.isValidMove(move)) {
-                const pixel = this.hexToPixel(hex);
+                const pixel = this.hexToPixel(destination);
                 this.drawMoveIndicator(pixel.x, pixel.y);
             }
+        }
+    }
+    
+    drawGroupMoves() {
+        // Get line direction
+        const lineDirection = this.getLineDirection(this.selectedPieces);
+        if (!lineDirection) return;
+        
+        // Sort pieces to find front and back
+        const sorted = this.sortPiecesInDirection(this.selectedPieces, lineDirection);
+        const frontPiece = sorted[sorted.length - 1];
+        const backPiece = sorted[0];
+        
+        // 1. Forward move (inline)
+        const forwardDest = {
+            q: frontPiece.q + lineDirection.q,
+            r: frontPiece.r + lineDirection.r
+        };
+        const forwardMove = {
+            from: [...this.selectedPieces],
+            to: forwardDest,
+            player: this.currentPlayer
+        };
+        if (this.isValidMove(forwardMove)) {
+            const pixel = this.hexToPixel(forwardDest);
+            this.drawMoveIndicator(pixel.x, pixel.y);
+        }
+        
+        // 2. Backward move (inline)
+        const backwardDest = {
+            q: backPiece.q - lineDirection.q,
+            r: backPiece.r - lineDirection.r
+        };
+        const backwardMove = {
+            from: [...this.selectedPieces],
+            to: backwardDest,
+            player: this.currentPlayer
+        };
+        if (this.isValidMove(backwardMove)) {
+            const pixel = this.hexToPixel(backwardDest);
+            this.drawMoveIndicator(pixel.x, pixel.y);
+        }
+        
+        // 3. Sidestep moves (perpendicular)
+        this.drawSidestepMoves();
+    }
+    
+    drawSidestepMoves() {
+        if (this.selectedPieces.length < 2) return;
+        
+        // Get all possible perpendicular directions
+        const lineDirection = this.getLineDirection(this.selectedPieces);
+        if (!lineDirection) return;
+        
+        // Get perpendicular directions
+        const perpDirections = this.getPerpendicularDirections(lineDirection);
+        
+        for (const direction of perpDirections) {
+            // Check if all pieces can move in this direction
+            let canMove = true;
+            const destinations = [];
+            
+            for (const piece of this.selectedPieces) {
+                const newPos = {
+                    q: piece.q + direction.q,
+                    r: piece.r + direction.r
+                };
+                const key = `${newPos.q},${newPos.r}`;
+                
+                if (!this.board.has(key) || this.board.get(key) !== null) {
+                    canMove = false;
+                    break;
+                }
+                destinations.push(newPos);
+            }
+            
+            if (canMove) {
+                // Draw special group move indicator
+                this.drawGroupMoveIndicator(destinations);
+            }
+        }
+    }
+    
+    getPerpendicularDirections(lineDirection) {
+        // All 6 hex directions
+        const allDirections = [
+            {q: 1, r: 0}, {q: 0, r: 1}, {q: -1, r: 1},
+            {q: -1, r: 0}, {q: 0, r: -1}, {q: 1, r: -1}
+        ];
+        
+        // Filter out the line direction and its opposite
+        return allDirections.filter(dir => {
+            return !(dir.q === lineDirection.q && dir.r === lineDirection.r) &&
+                   !(dir.q === -lineDirection.q && dir.r === -lineDirection.r);
         });
+    }
+    
+    drawGroupMoveIndicator(destinations) {
+        const { ctx } = this;
+        
+        // Draw connecting rectangle/highlight across all destination positions
+        const pixels = destinations.map(dest => this.hexToPixel(dest));
+        
+        if (pixels.length < 2) return;
+        
+        // Draw a rectangle connecting all positions
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = '#FF9800'; // Orange for group moves
+        
+        // Find bounding box
+        const minX = Math.min(...pixels.map(p => p.x)) - this.hexRadius;
+        const maxX = Math.max(...pixels.map(p => p.x)) + this.hexRadius;
+        const minY = Math.min(...pixels.map(p => p.y)) - this.hexRadius;
+        const maxY = Math.max(...pixels.map(p => p.y)) + this.hexRadius;
+        
+        ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+        ctx.restore();
+        
+        // Also draw individual indicators on each destination
+        for (const pixel of pixels) {
+            this.drawSidestepIndicator(pixel.x, pixel.y);
+        }
+    }
+    
+    drawSidestepIndicator(x, y) {
+        const { ctx } = this;
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(255, 152, 0, 0.8)'; // Orange
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 111, 0, 1)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
     }
     
     drawMoveIndicator(x, y) {
