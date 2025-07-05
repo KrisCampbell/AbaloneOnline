@@ -308,7 +308,7 @@ class WorkingMultiplayer {
         } else {
             currentPlayerElement.style.color = '#999';
             currentPlayerElement.style.fontWeight = 'normal';
-            this.updateConnectionStatus(`Waiting for opponent's move...`);
+            this.updateConnectionStatus(`Opponent's turn`);
         }
     }
     
