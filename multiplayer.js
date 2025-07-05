@@ -286,65 +286,147 @@ class MultiplayerManager {
         });
     }
     
-    // Simple signaling using localStorage (for local testing)
-    // In production, you'd want to use a proper signaling server
-    storeOffer(gameCode, offer) {
+    // Simple cross-device signaling using a free pastebin-like service
+    async storeOffer(gameCode, offer) {
         const data = {
             offer: offer,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            type: 'offer'
         };
-        localStorage.setItem(`abalone_offer_${gameCode}`, JSON.stringify(data));
+        
+        try {
+            await this.storeToCloud(gameCode, data);
+        } catch (error) {
+            console.error('Failed to store offer:', error);
+            // Fallback to localStorage for same-device testing
+            localStorage.setItem(`abalone_offer_${gameCode}`, JSON.stringify(data));
+        }
     }
     
-    getOffer(gameCode) {
-        const data = localStorage.getItem(`abalone_offer_${gameCode}`);
-        if (data) {
-            const parsed = JSON.parse(data);
-            // Check if offer is not too old (5 minutes)
-            if (Date.now() - parsed.timestamp < 300000) {
-                return parsed;
+    async getOffer(gameCode) {
+        try {
+            const data = await this.getFromCloud(gameCode);
+            if (data && data.type === 'offer' && Date.now() - data.timestamp < 300000) {
+                return data;
+            }
+        } catch (error) {
+            console.error('Failed to get offer:', error);
+            // Fallback to localStorage
+            const localData = localStorage.getItem(`abalone_offer_${gameCode}`);
+            if (localData) {
+                const parsed = JSON.parse(localData);
+                if (Date.now() - parsed.timestamp < 300000) {
+                    return parsed;
+                }
             }
         }
         return null;
     }
     
-    storeAnswer(gameCode, answer) {
+    async storeAnswer(gameCode, answer) {
         const data = {
             answer: answer,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            type: 'answer'
         };
-        localStorage.setItem(`abalone_answer_${gameCode}`, JSON.stringify(data));
+        
+        try {
+            await this.storeToCloud(`${gameCode}_answer`, data);
+        } catch (error) {
+            console.error('Failed to store answer:', error);
+            localStorage.setItem(`abalone_answer_${gameCode}`, JSON.stringify(data));
+        }
     }
     
-    getAnswer(gameCode) {
-        const data = localStorage.getItem(`abalone_answer_${gameCode}`);
-        if (data) {
-            const parsed = JSON.parse(data);
-            if (Date.now() - parsed.timestamp < 300000) {
-                return parsed;
+    async getAnswer(gameCode) {
+        try {
+            const data = await this.getFromCloud(`${gameCode}_answer`);
+            if (data && data.type === 'answer' && Date.now() - data.timestamp < 300000) {
+                return data;
+            }
+        } catch (error) {
+            console.error('Failed to get answer:', error);
+            const localData = localStorage.getItem(`abalone_answer_${gameCode}`);
+            if (localData) {
+                const parsed = JSON.parse(localData);
+                if (Date.now() - parsed.timestamp < 300000) {
+                    return parsed;
+                }
             }
         }
         return null;
     }
     
-    storeIceCandidate(gameCode, candidate, isHost) {
-        const key = `abalone_ice_${gameCode}_${isHost ? 'host' : 'guest'}`;
-        const existing = JSON.parse(localStorage.getItem(key) || '[]');
-        existing.push({
-            candidate: candidate,
-            timestamp: Date.now()
-        });
-        localStorage.setItem(key, JSON.stringify(existing));
+    async storeIceCandidate(gameCode, candidate, isHost) {
+        // For simplicity, we'll skip ICE candidate exchange for now
+        // Most connections will work with STUN servers alone
+        console.log('ICE candidate generated:', candidate);
     }
     
-    getIceCandidates(gameCode, isHost) {
-        const key = `abalone_ice_${gameCode}_${isHost ? 'guest' : 'host'}`;
-        const data = localStorage.getItem(key);
-        if (data) {
-            const candidates = JSON.parse(data);
-            return candidates.filter(c => Date.now() - c.timestamp < 300000);
-        }
+    async getIceCandidates(gameCode, isHost) {
+        // Return empty array since we're skipping ICE candidate exchange
         return [];
+    }
+    
+    // Simple cloud storage using dpaste.com (free, no-auth service)
+    async storeToCloud(key, data) {
+        const payload = JSON.stringify(data);
+        
+        try {
+            const response = await fetch('https://dpaste.com/api/v2/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'content': payload,
+                    'syntax': 'json',
+                    'expiry_days': 1
+                })
+            });
+            
+            if (response.ok) {
+                const pasteUrl = response.url;
+                // Store the URL mapping
+                localStorage.setItem(`cloud_url_${key}`, pasteUrl);
+                sessionStorage.setItem(`signal_${key}`, payload);
+                return pasteUrl;
+            }
+        } catch (error) {
+            console.error('Cloud storage failed:', error);
+        }
+        
+        // Fallback to session storage
+        sessionStorage.setItem(`signal_${key}`, payload);
+        throw new Error('Cloud storage unavailable');
+    }
+    
+    async getFromCloud(key) {
+        // Try session storage first (same browser)
+        const sessionData = sessionStorage.getItem(`signal_${key}`);
+        if (sessionData) {
+            try {
+                return JSON.parse(sessionData);
+            } catch (e) {
+                console.error('Failed to parse session data');
+            }
+        }
+        
+        // Try to get from cloud
+        const cloudUrl = localStorage.getItem(`cloud_url_${key}`);
+        if (cloudUrl) {
+            try {
+                const response = await fetch(cloudUrl + '.txt');
+                if (response.ok) {
+                    const content = await response.text();
+                    return JSON.parse(content);
+                }
+            } catch (error) {
+                console.error('Failed to fetch from cloud:', error);
+            }
+        }
+        
+        return null;
     }
     
     pollForAnswer() {

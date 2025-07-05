@@ -26,21 +26,22 @@ class AbaloneGame {
     }
     
     initializeBoard() {
-        // Create hexagonal board representation
+        // Create hexagonal board representation for standard Abalone
         // Using axial coordinates (q, r) for hexagonal grid
         const board = new Map();
         
-        // Define the Abalone board shape
+        // Standard Abalone board: hexagonal shape with 61 positions
+        // Each row has varying lengths to form a proper hexagon
         const boardLayout = [
-            { row: -4, cols: [-4, -3, -2, -1, 0] },
-            { row: -3, cols: [-4, -3, -2, -1, 0, 1] },
-            { row: -2, cols: [-4, -3, -2, -1, 0, 1, 2] },
-            { row: -1, cols: [-4, -3, -2, -1, 0, 1, 2, 3] },
-            { row: 0, cols: [-4, -3, -2, -1, 0, 1, 2, 3, 4] },
-            { row: 1, cols: [-3, -2, -1, 0, 1, 2, 3, 4] },
-            { row: 2, cols: [-2, -1, 0, 1, 2, 3, 4] },
-            { row: 3, cols: [-1, 0, 1, 2, 3, 4] },
-            { row: 4, cols: [0, 1, 2, 3, 4] }
+            { row: -4, cols: [-4, -3, -2, -1, 0] },           // 5 positions
+            { row: -3, cols: [-4, -3, -2, -1, 0, 1] },        // 6 positions  
+            { row: -2, cols: [-4, -3, -2, -1, 0, 1, 2] },     // 7 positions
+            { row: -1, cols: [-4, -3, -2, -1, 0, 1, 2, 3] },  // 8 positions
+            { row: 0, cols: [-4, -3, -2, -1, 0, 1, 2, 3, 4] }, // 9 positions (center)
+            { row: 1, cols: [-3, -2, -1, 0, 1, 2, 3, 4] },    // 8 positions
+            { row: 2, cols: [-2, -1, 0, 1, 2, 3, 4] },        // 7 positions
+            { row: 3, cols: [-1, 0, 1, 2, 3, 4] },            // 6 positions
+            { row: 4, cols: [0, 1, 2, 3, 4] }                 // 5 positions
         ];
         
         // Initialize empty board
@@ -50,14 +51,16 @@ class AbaloneGame {
             });
         });
         
-        // Place initial pieces
-        // Black pieces (top)
+        // Place initial pieces in standard Abalone formation
+        // Black pieces (top side of hexagon)
+        // Row -4: 5 black pieces
         board.set('-4,-4', 'black');
         board.set('-3,-4', 'black');
         board.set('-2,-4', 'black');
         board.set('-1,-4', 'black');
         board.set('0,-4', 'black');
         
+        // Row -3: 6 black pieces  
         board.set('-4,-3', 'black');
         board.set('-3,-3', 'black');
         board.set('-2,-3', 'black');
@@ -65,15 +68,18 @@ class AbaloneGame {
         board.set('0,-3', 'black');
         board.set('1,-3', 'black');
         
+        // Row -2: 3 black pieces (only center)
         board.set('-2,-2', 'black');
         board.set('-1,-2', 'black');
         board.set('0,-2', 'black');
         
-        // White pieces (bottom)
+        // White pieces (bottom side of hexagon)  
+        // Row 2: 3 white pieces (only center)
         board.set('0,2', 'white');
         board.set('1,2', 'white');
         board.set('2,2', 'white');
         
+        // Row 3: 6 white pieces
         board.set('-1,3', 'white');
         board.set('0,3', 'white');
         board.set('1,3', 'white');
@@ -81,6 +87,7 @@ class AbaloneGame {
         board.set('3,3', 'white');
         board.set('4,3', 'white');
         
+        // Row 4: 5 white pieces
         board.set('0,4', 'white');
         board.set('1,4', 'white');
         board.set('2,4', 'white');
