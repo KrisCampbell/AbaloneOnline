@@ -175,7 +175,9 @@ class AbaloneGame {
         const dq = Math.abs(hex1.q - hex2.q);
         const dr = Math.abs(hex1.r - hex2.r);
         const ds = Math.abs(hex1.q + hex1.r - hex2.q - hex2.r);
-        return (dq <= 1 && dr <= 1 && ds <= 1) && (dq + dr + ds === 2);
+        const isAdj = (dq <= 1 && dr <= 1 && ds <= 1) && (dq + dr + ds === 2);
+        console.log(`Adjacency check: ${hex1.q},${hex1.r} to ${hex2.q},${hex2.r} = ${isAdj} (dq:${dq}, dr:${dr}, ds:${ds})`);
+        return isAdj;
     }
     
     areInLine(hex1, hex2, hex3) {
@@ -191,17 +193,28 @@ class AbaloneGame {
     isValidMove(move) {
         const { from, to } = move;
         
+        console.log('Validating move:', { from, to, currentPlayer: this.currentPlayer });
+        
         // Check if all selected pieces belong to current player
         for (const hex of from) {
             const key = `${hex.q},${hex.r}`;
-            if (this.board.get(key) !== this.currentPlayer) {
+            const piece = this.board.get(key);
+            console.log(`Piece at ${key}:`, piece);
+            if (piece !== this.currentPlayer) {
+                console.log('Invalid: piece does not belong to current player');
                 return false;
             }
         }
         
-        // Check if destination is empty or contains opponent pieces
+        // Check if destination exists on board
         const toKey = `${to.q},${to.r}`;
-        if (!this.board.has(toKey)) return false;
+        if (!this.board.has(toKey)) {
+            console.log('Invalid: destination not on board');
+            return false;
+        }
+        
+        const destinationPiece = this.board.get(toKey);
+        console.log(`Destination ${toKey}:`, destinationPiece);
         
         // Sort pieces by distance from destination
         const sortedPieces = [...from].sort((a, b) => {
@@ -211,7 +224,12 @@ class AbaloneGame {
         });
         
         // Check if it's a valid push or sidestep
-        return this.isValidPush(sortedPieces, to) || this.isValidSidestep(sortedPieces, to);
+        const pushValid = this.isValidPush(sortedPieces, to);
+        const sidestepValid = this.isValidSidestep(sortedPieces, to);
+        
+        console.log('Push valid:', pushValid, 'Sidestep valid:', sidestepValid);
+        
+        return pushValid || sidestepValid;
     }
     
     isValidPush(pieces, to) {
