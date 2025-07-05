@@ -271,15 +271,11 @@ class AbaloneGame {
             // If this is a valid sidestep direction and the clicked hex is one of the destinations
             if (canMove && destinations.some(dest => dest.q === clickedHex.q && dest.r === clickedHex.r)) {
                 console.log('Found matching destination!');
-                // For sidestep moves, we need to return the first piece's destination as the "to" field
-                // But the actual move logic will handle moving all pieces
-                const firstPieceDestination = {
-                    q: this.selectedPieces[0].q + direction.q,
-                    r: this.selectedPieces[0].r + direction.r
-                };
+                // For sidestep moves, return the clicked hex as the "to" field
+                // This will work with the existing isValidSidestepMove logic
                 const move = {
                     from: [...this.selectedPieces],
-                    to: firstPieceDestination,
+                    to: clickedHex,
                     player: this.currentPlayer
                 };
                 console.log('Returning sidestep move:', move);
@@ -444,16 +440,31 @@ class AbaloneGame {
     }
     
     isValidSidestepMove(pieces, to) {
+        console.log('Validating sidestep move with pieces:', pieces, 'to:', to);
+        
         // Get movement direction
         const moveDirection = this.getDirection(pieces[0], to);
-        if (!moveDirection) return false;
+        console.log('Move direction:', moveDirection);
+        if (!moveDirection) {
+            console.log('Sidestep failed: no move direction');
+            return false;
+        }
         
         // Get line direction
         const lineDirection = this.getLineDirection(pieces);
-        if (!lineDirection) return false;
+        console.log('Line direction:', lineDirection);
+        if (!lineDirection) {
+            console.log('Sidestep failed: no line direction');
+            return false;
+        }
         
         // Check if move is perpendicular to line
-        if (!this.isPerpendicular(moveDirection, lineDirection)) return false;
+        const isPerpendicular = this.isPerpendicular(moveDirection, lineDirection);
+        console.log('Is perpendicular?', isPerpendicular);
+        if (!isPerpendicular) {
+            console.log('Sidestep failed: not perpendicular');
+            return false;
+        }
         
         // Check all destinations are empty
         for (const piece of pieces) {
@@ -463,11 +474,15 @@ class AbaloneGame {
             };
             const key = `${newPos.q},${newPos.r}`;
             
+            console.log('Checking destination for piece', piece, 'new position:', newPos, 'empty?', this.board.get(key) === null);
+            
             if (!this.board.has(key) || this.board.get(key) !== null) {
+                console.log('Sidestep failed: destination occupied or off board');
                 return false;
             }
         }
         
+        console.log('Sidestep validation passed!');
         return true;
     }
     
