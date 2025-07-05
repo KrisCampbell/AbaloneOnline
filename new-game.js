@@ -271,15 +271,24 @@ class AbaloneGame {
             // If this is a valid sidestep direction and the clicked hex is one of the destinations
             if (canMove && destinations.some(dest => dest.q === clickedHex.q && dest.r === clickedHex.r)) {
                 console.log('Found matching destination!');
-                // For sidestep moves, return the clicked hex as the "to" field
-                // This will work with the existing isValidSidestepMove logic
-                const move = {
-                    from: [...this.selectedPieces],
-                    to: clickedHex,
-                    player: this.currentPlayer
-                };
-                console.log('Returning sidestep move:', move);
-                return move;
+                // For sidestep moves, we need to return the move with the correct "to" position
+                // Find which piece corresponds to the clicked destination
+                const pieceIndex = destinations.findIndex(dest => dest.q === clickedHex.q && dest.r === clickedHex.r);
+                if (pieceIndex !== -1) {
+                    // Use the first piece's destination as the "to" field for validation
+                    // This ensures the move direction calculation is correct
+                    const firstDestination = {
+                        q: this.selectedPieces[0].q + direction.q,
+                        r: this.selectedPieces[0].r + direction.r
+                    };
+                    const move = {
+                        from: [...this.selectedPieces],
+                        to: firstDestination,
+                        player: this.currentPlayer
+                    };
+                    console.log('Returning sidestep move:', move);
+                    return move;
+                }
             }
         }
         
