@@ -316,7 +316,7 @@ class AbaloneGame {
         
         // Multi-piece move
         console.log('Validating group move');
-        const result = this.isValidGroupMove(from, to);
+        const result = this.isValidGroupMove(from, to, move);
         console.log('Group move validation result:', result);
         return result;
     }
@@ -332,7 +332,7 @@ class AbaloneGame {
         return toPiece === null;
     }
     
-    isValidGroupMove(pieces, to) {
+    isValidGroupMove(pieces, to, move) {
         console.log('Validating group move with pieces:', pieces, 'to:', to);
         
         // Get the line direction
